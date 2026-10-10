@@ -141,7 +141,7 @@ export interface Resource {
   url?: string;
   fileType?: 'pdf' | 'docx' | 'pptx' | 'xlsx' | 'image' | 'video' | 'interactive';
   fileSize?: number;
-  embedType?: 'youtube' | 'phet' | 'canva' | 'powerpoint' | 'geogebra' | 'drive' | 'custom_sim' | 'office_online';
+  embedType?: 'youtube' | 'phet' | 'canva' | 'powerpoint' | 'geogebra' | 'drive' | 'custom_sim' | 'office_online' | 'html_safe';
   duration?: string;
   guidingQuestions?: string[];
   experimentData?: ExperimentMetadata;
