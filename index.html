@@ -157,6 +157,37 @@
       return <span ref={spanRef} className={`font-mono text-physics-dark ${displayMode ? 'my-2 block text-center' : ''} ${className}`} />;
     };
 
+    // --- COMPONENT: TEXT WITH EMBEDDED KATEX ---
+    const TextWithKaTeX = ({ text, className = '' }) => {
+      const divRef = useRef(null);
+      useEffect(() => {
+        if (!divRef.current || !text) return;
+        if (window.katex) {
+          try {
+            const parts = text.split(/(\$.*?\$)/g);
+            divRef.current.innerHTML = '';
+            parts.forEach(part => {
+              if (part.startsWith('$') && part.endsWith('$')) {
+                const math = part.slice(1, -1);
+                const span = document.createElement('span');
+                window.katex.render(math, span, { throwOnError: false });
+                divRef.current.appendChild(span);
+              } else {
+                const span = document.createElement('span');
+                span.textContent = part;
+                divRef.current.appendChild(span);
+              }
+            });
+          } catch (e) {
+            divRef.current.innerText = text;
+          }
+        } else {
+          divRef.current.innerText = text;
+        }
+      }, [text]);
+      return <div ref={divRef} className={`leading-relaxed whitespace-pre-wrap ${className}`} />;
+    };
+
     // --- COMPONENT: PHYSICS SIMULATOR CANVASES (10, 11, 12) ---
     const InteractiveSimulator = ({ type }) => {
       const [isRunning, setIsRunning] = useState(false);
@@ -894,9 +925,30 @@
       const [currentTab, setCurrentTab] = useState('home');
       const [activeLesson, setActiveLesson] = useState(null);
       const [userRole, setUserRole] = useState('teacher'); // 'student', 'teacher', 'admin'
-      const [lessons, setLessons] = useState(INITIAL_LESSONS_DATA);
-      const [resources, setResources] = useState(INITIAL_RESOURCES_DATA);
-      const [chapters, setChapters] = useState(INITIAL_CHAPTERS_DATA);
+      const [lessons, setLessons] = useState(() => {
+        try {
+          const saved = localStorage.getItem('vatly_lessons');
+          return saved ? JSON.parse(saved) : INITIAL_LESSONS_DATA;
+        } catch (e) {
+          return INITIAL_LESSONS_DATA;
+        }
+      });
+      const [resources, setResources] = useState(() => {
+        try {
+          const saved = localStorage.getItem('vatly_resources');
+          return saved ? JSON.parse(saved) : INITIAL_RESOURCES_DATA;
+        } catch (e) {
+          return INITIAL_RESOURCES_DATA;
+        }
+      });
+      const [chapters, setChapters] = useState(() => {
+        try {
+          const saved = localStorage.getItem('vatly_chapters');
+          return saved ? JSON.parse(saved) : INITIAL_CHAPTERS_DATA;
+        } catch (e) {
+          return INITIAL_CHAPTERS_DATA;
+        }
+      });
       const [textbooks, setTextbooks] = useState(INITIAL_TEXTBOOKS_DATA);
       const [globalSearch, setGlobalSearch] = useState('');
       const [selectedChapterId, setSelectedChapterId] = useState('all');
@@ -906,12 +958,18 @@
       const [newChapterName, setNewChapterName] = useState('');
       const [newChapterGrade, setNewChapterGrade] = useState(10);
       const [newTextbookName, setNewTextbookName] = useState('');
-      const [authorLine, setAuthorLine] = useState('Ths: Lê Long - QT'); // Editable in settings
-      const [siteTitle, setSiteTitle] = useState('KHÔNG GIAN HỌC TẬP VẬT LÍ 10–11–12');
+      const [authorLine, setAuthorLine] = useState(() => {
+        return localStorage.getItem('vatly_authorLine') || 'Ths: Lê Long - QT';
+      });
+      const [siteTitle, setSiteTitle] = useState(() => {
+        return localStorage.getItem('vatly_siteTitle') || 'KHÔNG GIAN HỌC TẬP VẬT LÍ 10–11–12';
+      });
       const [showFirebaseModal, setShowFirebaseModal] = useState(false);
       const [showPresentation, setShowPresentation] = useState(false);
       const [lessonTab, setLessonTab] = useState('knowledge'); // Active tab in lesson detail
       const [revealedAnswers, setRevealedAnswers] = useState({});
+      const [userMcqAnswers, setUserMcqAnswers] = useState({}); // Interactive quiz state
+      const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // Mobile navbar drawer state
       const [activeExperimentModal, setActiveExperimentModal] = useState(null);
       const [activeVideoModal, setActiveVideoModal] = useState(null);
       const [reportModalItem, setReportModalItem] = useState(null);
@@ -919,6 +977,7 @@
       // Teacher Portal State
       const [teacherTab, setTeacherTab] = useState('resources');
       const [editingResource, setEditingResource] = useState(null);
+      const [editingLesson, setEditingLesson] = useState(null); // Lesson CRUD modal
       const [createMode, setCreateMode] = useState('link'); // 'upload', 'link', 'compose'
       const [uploadProgress, setUploadProgress] = useState(null);
       const [uploadError, setUploadError] = useState(null);
@@ -926,6 +985,39 @@
       const [jsonInput, setJsonInput] = useState('');
       const [jsonError, setJsonError] = useState(null);
       const [jsonSuccess, setJsonSuccess] = useState(null);
+
+      // LocalStorage auto-sync
+      useEffect(() => {
+        try { localStorage.setItem('vatly_lessons', JSON.stringify(lessons)); } catch (e) {}
+      }, [lessons]);
+      useEffect(() => {
+        try { localStorage.setItem('vatly_resources', JSON.stringify(resources)); } catch (e) {}
+      }, [resources]);
+      useEffect(() => {
+        try { localStorage.setItem('vatly_chapters', JSON.stringify(chapters)); } catch (e) {}
+      }, [chapters]);
+      useEffect(() => {
+        try { localStorage.setItem('vatly_authorLine', authorLine); } catch (e) {}
+      }, [authorLine]);
+      useEffect(() => {
+        try { localStorage.setItem('vatly_siteTitle', siteTitle); } catch (e) {}
+      }, [siteTitle]);
+
+      const handleResetToDefault = () => {
+        if (confirm('Khôi phục toàn bộ bài học, học liệu và danh mục về mặc định chuẩn GDPT 2018? Mọi thay đổi chưa lưu sẽ được làm mới.')) {
+          localStorage.removeItem('vatly_lessons');
+          localStorage.removeItem('vatly_resources');
+          localStorage.removeItem('vatly_chapters');
+          localStorage.removeItem('vatly_authorLine');
+          localStorage.removeItem('vatly_siteTitle');
+          setLessons(INITIAL_LESSONS_DATA);
+          setResources(INITIAL_RESOURCES_DATA);
+          setChapters(INITIAL_CHAPTERS_DATA);
+          setAuthorLine('Ths: Lê Long - QT');
+          setSiteTitle('KHÔNG GIAN HỌC TẬP VẬT LÍ 10–11–12');
+          alert('Đã khôi phục dữ liệu gốc chuẩn GDPT 2018 thành công!');
+        }
+      };
 
       const handleExportJson = () => {
         const payload = {
@@ -1212,16 +1304,63 @@
                 ))}
               </nav>
 
-              <button
-                onClick={() => { setCurrentTab('teacher'); setActiveLesson(null); }}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all shadow ${
-                  currentTab === 'teacher' ? 'bg-amber-500 text-slate-900 font-bold' : 'bg-teal-600 hover:bg-teal-500 text-white'
-                }`}
-              >
-                <span>⚙</span>
-                <span>Khu vực giáo viên</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => { setCurrentTab('teacher'); setActiveLesson(null); setMobileMenuOpen(false); }}
+                  className={`hidden sm:flex px-3.5 py-1.5 rounded-lg text-xs font-semibold items-center space-x-1.5 transition-all shadow ${
+                    currentTab === 'teacher' ? 'bg-amber-500 text-slate-900 font-bold' : 'bg-teal-600 hover:bg-teal-500 text-white'
+                  }`}
+                >
+                  <span>⚙</span>
+                  <span>Khu vực giáo viên</span>
+                </button>
+
+                {/* Hamburger Button for Mobile / Tablet */}
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="lg:hidden p-2 rounded-lg bg-blue-900/60 hover:bg-blue-800 text-white focus:outline-none"
+                  aria-label="Mở menu"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {mobileMenuOpen ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                    )}
+                  </svg>
+                </button>
+              </div>
             </div>
+
+            {/* Mobile Drawer Navigation */}
+            {mobileMenuOpen && (
+              <div className="lg:hidden bg-[#0a1e42] border-t border-blue-900/60 px-4 pt-2 pb-4 space-y-1 animate-fadeIn text-sm">
+                {[
+                  { id: 'home', label: '🏠 Trang chủ' },
+                  { id: 'grade10', label: '📘 Vật lí 10' },
+                  { id: 'grade11', label: '📗 Vật lí 11' },
+                  { id: 'grade12', label: '📙 Vật lí 12' },
+                  { id: 'experiments', label: '🔬 Thí nghiệm & Mô phỏng' },
+                  { id: 'videos', label: '🎬 Thư viện Video' },
+                  { id: 'documents', label: '📄 Thư viện Tài liệu & Slide' },
+                  { id: 'teacher', label: '⚙️ Khu vực Giáo viên' }
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setCurrentTab(item.id);
+                      setActiveLesson(null);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`block w-full text-left px-3 py-2 rounded-lg font-medium transition-colors ${
+                      currentTab === item.id ? 'bg-teal-600 text-white font-bold' : 'text-slate-200 hover:bg-blue-900/60'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </header>
 
           {/* BREADCRUMBS */}
@@ -1450,27 +1589,76 @@
                       <div className="space-y-4">
                         {activeLesson.practiceExercises.map((ex, i) => {
                           const isShown = revealedAnswers[ex.id];
+                          const selectedOpt = userMcqAnswers[ex.id];
+                          const isAnswered = Boolean(selectedOpt);
+                          const isCorrect = isAnswered && ex.correctAnswer && (selectedOpt.startsWith(ex.correctAnswer.charAt(0)) || selectedOpt === ex.correctAnswer);
+
                           return (
-                            <div key={ex.id} className="p-5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
-                              <p className="font-bold text-physics-navy mb-2">Câu hỏi #{i + 1}:</p>
-                              <p className="text-slate-800 mb-3">{ex.question}</p>
+                            <div key={ex.id} className="p-5 bg-white border border-slate-200 rounded-xl shadow-sm text-sm">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="font-bold text-physics-navy text-xs uppercase tracking-wider">Câu hỏi #{i + 1}:</span>
+                                {isAnswered && (
+                                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                                    {isCorrect ? '✓ Đúng' : '✕ Chưa đúng'}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-slate-800 font-medium mb-3 leading-relaxed">{ex.question}</p>
+                              
                               {ex.options && (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-                                  {ex.options.map((opt, oIdx) => (
-                                    <div key={oIdx} className="p-2 bg-white rounded border border-slate-200 text-xs text-slate-700">{opt}</div>
-                                  ))}
+                                  {ex.options.map((opt, oIdx) => {
+                                    const isThisSelected = selectedOpt === opt;
+                                    let btnStyle = "p-2.5 rounded-lg border text-xs text-left transition-all font-medium cursor-pointer ";
+                                    if (isThisSelected) {
+                                      if (isCorrect) {
+                                        btnStyle += "bg-emerald-100 border-emerald-500 text-emerald-900 font-bold ring-2 ring-emerald-400";
+                                      } else {
+                                        btnStyle += "bg-rose-100 border-rose-500 text-rose-900 font-bold ring-2 ring-rose-400";
+                                      }
+                                    } else {
+                                      btnStyle += "bg-slate-50 border-slate-200 text-slate-700 hover:bg-blue-50 hover:border-blue-300";
+                                    }
+                                    return (
+                                      <button
+                                        key={oIdx}
+                                        onClick={() => setUserMcqAnswers(prev => ({ ...prev, [ex.id]: opt }))}
+                                        className={btnStyle}
+                                      >
+                                        {opt}
+                                      </button>
+                                    );
+                                  })}
                                 </div>
                               )}
-                              <button
-                                onClick={() => setRevealedAnswers(prev => ({ ...prev, [ex.id]: !prev[ex.id] }))}
-                                className="text-xs font-bold text-physics-navy hover:text-teal-600"
-                              >
-                                {isShown ? '▼ Ẩn hướng dẫn giải & đáp án' : '▶ Mở hướng dẫn giải & đáp án'}
-                              </button>
+
+                              {isAnswered && (
+                                <div className={`p-2.5 rounded-lg text-xs font-semibold mb-3 flex items-center gap-2 ${
+                                  isCorrect ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-rose-50 border border-rose-200 text-rose-800'
+                                }`}>
+                                  <span>{isCorrect ? '🎉 Bạn trả lời rất chuẩn xác! Hãy tiếp tục phát huy.' : '💡 Chưa chính xác. Bấm vào nút bên dưới để xem hướng dẫn giải chi tiết.'}</span>
+                                </div>
+                              )}
+
+                              <div className="pt-2 border-t flex justify-between items-center">
+                                <button
+                                  onClick={() => setRevealedAnswers(prev => ({ ...prev, [ex.id]: !prev[ex.id] }))}
+                                  className="text-xs font-bold text-physics-navy hover:text-teal-600 transition-colors flex items-center gap-1"
+                                >
+                                  <span>{isShown ? '▼ Ẩn hướng dẫn giải & đáp án' : '▶ Xem hướng dẫn giải chi tiết'}</span>
+                                </button>
+                                {ex.type === 'mcq' && (
+                                  <span className="text-[11px] text-slate-400">Trắc nghiệm khách quan</span>
+                                )}
+                              </div>
+
                               {isShown && (
-                                <div className="mt-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-950 animate-fadeIn">
-                                  {ex.correctAnswer && <p className="font-bold text-emerald-800 mb-1">Đáp án: {ex.correctAnswer}</p>}
-                                  <p><strong>Hướng dẫn:</strong> {ex.solutionGuide}</p>
+                                <div className="mt-3 p-4 bg-emerald-50/70 border border-emerald-200 rounded-lg text-xs text-emerald-950 animate-fadeIn space-y-1.5">
+                                  {ex.correctAnswer && <p className="font-bold text-emerald-800">Đáp án chính xác: {ex.correctAnswer}</p>}
+                                  <div className="text-slate-800">
+                                    <strong className="block text-emerald-900 mb-0.5">Hướng dẫn giải:</strong>
+                                    <TextWithKaTeX text={ex.solutionGuide} />
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -2263,31 +2451,71 @@
                         )}
 
                         {teacherTab === 'lessons' && (
-                          <div className="bg-white rounded-xl border overflow-x-auto">
-                            <table className="w-full text-xs text-left">
-                              <thead className="bg-slate-50 border-b font-bold text-slate-700">
-                                <tr>
-                                  <th className="p-3">Khối</th>
-                                  <th className="p-3">Chủ đề</th>
-                                  <th className="p-3">Tên bài học</th>
-                                  <th className="p-3">Học liệu</th>
-                                  <th className="p-3 text-right">Xem</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y">
-                                {lessons.map(les => (
-                                  <tr key={les.id} className="hover:bg-slate-50">
-                                    <td className="p-3 font-bold text-physics-navy">Lớp {les.grade}</td>
-                                    <td className="p-3 text-slate-600">{les.chapterName}</td>
-                                    <td className="p-3 font-bold text-slate-800">{les.title}</td>
-                                    <td className="p-3 text-teal-700 font-bold">{les.linkedResourceIds.length} học liệu</td>
-                                    <td className="p-3 text-right">
-                                      <button onClick={() => openLesson(les)} className="px-3 py-1 bg-physics-navy text-white rounded font-medium">Mở bài →</button>
-                                    </td>
+                          <div className="space-y-4">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
+                              <div>
+                                <h3 className="font-bold text-sm text-physics-navy">Danh mục bài học ({lessons.length} bài)</h3>
+                                <p className="text-[11px] text-slate-500">Giáo viên có thể thêm, chỉnh sửa mục tiêu và học liệu cho từng bài học.</p>
+                              </div>
+                              <button
+                                onClick={() => setEditingLesson({
+                                  id: `lesson_${Date.now()}`,
+                                  grade: 10,
+                                  chapterId: chapters[0]?.id || 'c10_1',
+                                  chapterName: chapters[0]?.name || 'Mở đầu',
+                                  title: '',
+                                  order: lessons.length + 1,
+                                  textbookId: 'ket_noi_tri_thuc',
+                                  status: 'published',
+                                  authorId: 'teacher_long',
+                                  authorName: authorLine,
+                                  isSpecialTopic: false,
+                                  isSample: false,
+                                  objectives: { knowledge: ['Nắm vững kiến thức cốt lõi của bài học.'], skills: ['Vận dụng giải bài tập thực tế.'], expectedOutcomes: ['Giải thích được các hiện tượng Vật lí liên quan.'] },
+                                  keyKnowledge: { concepts: ['Khái niệm cốt lõi.'], laws: [], formulas: [], commonErrors: [] },
+                                  illustrations: [],
+                                  practiceExercises: [],
+                                  linkedResourceIds: []
+                                })}
+                                className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold text-xs shadow-sm flex items-center gap-1.5 transition-colors"
+                              >
+                                <span>➕ Thêm bài học mới</span>
+                              </button>
+                            </div>
+                            <div className="bg-white rounded-xl border overflow-x-auto shadow-sm">
+                              <table className="w-full text-xs text-left">
+                                <thead className="bg-slate-50 border-b font-bold text-slate-700">
+                                  <tr>
+                                    <th className="p-3">Khối</th>
+                                    <th className="p-3">Chủ đề</th>
+                                    <th className="p-3">Tên bài học</th>
+                                    <th className="p-3">Học liệu</th>
+                                    <th className="p-3 text-right">Thao tác</th>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                                </thead>
+                                <tbody className="divide-y">
+                                  {lessons.map(les => (
+                                    <tr key={les.id} className="hover:bg-slate-50">
+                                      <td className="p-3 font-bold text-physics-navy">Lớp {les.grade}</td>
+                                      <td className="p-3 text-slate-600">{les.chapterName}</td>
+                                      <td className="p-3 font-bold text-slate-800">{les.title}</td>
+                                      <td className="p-3 text-teal-700 font-bold">{les.linkedResourceIds.length} học liệu</td>
+                                      <td className="p-3 text-right space-x-1 whitespace-nowrap">
+                                        <button
+                                          onClick={() => setEditingLesson({ ...les })}
+                                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-semibold transition-colors"
+                                        >
+                                          Sửa
+                                        </button>
+                                        <button onClick={() => openLesson(les)} className="px-3 py-1 bg-physics-navy text-white rounded font-medium hover:bg-physics-blue transition-colors">
+                                          Mở bài →
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
                           </div>
                         )}
 
@@ -2440,6 +2668,13 @@
                                   className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold flex items-center gap-2 shadow-sm transition-colors"
                                 >
                                   <span>📥 Mở trình Nhập dữ liệu JSON</span>
+                                </button>
+                                <button
+                                  onClick={handleResetToDefault}
+                                  className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+                                  title="Khôi phục toàn bộ bài học và học liệu về mặc định chuẩn GDPT 2018"
+                                >
+                                  <span>🔄 Khôi phục dữ liệu gốc</span>
                                 </button>
                               </div>
                             </div>
@@ -2621,6 +2856,174 @@
                 <div className="pt-3 border-t flex justify-between items-center text-xs">
                   <span className="text-slate-500">Nguồn: <strong className="text-slate-700">{activeVideoModal.source || activeVideoModal.author}</strong></span>
                   <button onClick={() => setActiveVideoModal(null)} className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded text-xs font-semibold">Đóng</button>
+                </div>
+              </div>
+            </div>
+          {/* EDIT/CREATE LESSON MODAL IN TEACHER PORTAL */}
+          {editingLesson && (
+            <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl animate-fadeIn text-xs">
+                <div className="flex justify-between items-center pb-3 border-b mb-4">
+                  <div>
+                    <span className="text-[10px] font-bold text-teal-600 uppercase">Soạn bài học chuẩn GDPT 2018</span>
+                    <h3 className="font-bold text-base text-slate-900 mt-0.5">
+                      {editingLesson.title ? `Sửa bài học: ${editingLesson.title}` : 'Thêm bài học mới'}
+                    </h3>
+                  </div>
+                  <button onClick={() => setEditingLesson(null)} className="text-xl font-bold text-slate-400 hover:text-slate-700 leading-none">✕</button>
+                </div>
+
+                <div className="space-y-3.5">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700">Tên bài học *:</label>
+                    <input
+                      type="text"
+                      value={editingLesson.title}
+                      onChange={e => setEditingLesson({ ...editingLesson, title: e.target.value })}
+                      placeholder="VD: Bài 1: Chuyển động thẳng biến đổi đều..."
+                      className="w-full border p-2 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-700">Khối lớp:</label>
+                      <select
+                        value={editingLesson.grade}
+                        onChange={e => {
+                          const g = parseInt(e.target.value);
+                          const filtered = chapters.filter(c => c.grade === g);
+                          setEditingLesson({
+                            ...editingLesson,
+                            grade: g,
+                            chapterId: filtered[0]?.id || '',
+                            chapterName: filtered[0]?.name || ''
+                          });
+                        }}
+                        className="w-full border p-2 rounded-lg bg-white"
+                      >
+                        <option value={10}>Vật lí 10</option>
+                        <option value={11}>Vật lí 11</option>
+                        <option value={12}>Vật lí 12</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-700">Chương / Chủ đề:</label>
+                      <select
+                        value={editingLesson.chapterId}
+                        onChange={e => {
+                          const ch = chapters.find(c => c.id === e.target.value);
+                          if (ch) {
+                            setEditingLesson({ ...editingLesson, chapterId: ch.id, chapterName: ch.name });
+                          }
+                        }}
+                        className="w-full border p-2 rounded-lg bg-white"
+                      >
+                        {chapters.filter(c => c.grade === editingLesson.grade).map(ch => (
+                          <option key={ch.id} value={ch.id}>{ch.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700">Mục tiêu kiến thức (Mỗi dòng một mục tiêu):</label>
+                    <textarea
+                      rows={2}
+                      value={(editingLesson.objectives?.knowledge || []).join('\n')}
+                      onChange={e => setEditingLesson({
+                        ...editingLesson,
+                        objectives: {
+                          ...editingLesson.objectives,
+                          knowledge: e.target.value.split('\n')
+                        }
+                      })}
+                      className="w-full border p-2 rounded-lg font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700">Mục tiêu kĩ năng (Mỗi dòng một kĩ năng):</label>
+                    <textarea
+                      rows={2}
+                      value={(editingLesson.objectives?.skills || []).join('\n')}
+                      onChange={e => setEditingLesson({
+                        ...editingLesson,
+                        objectives: {
+                          ...editingLesson.objectives,
+                          skills: e.target.value.split('\n')
+                        }
+                      })}
+                      className="w-full border p-2 rounded-lg font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700">Khái niệm cốt lõi (Kiến thức trọng tâm):</label>
+                    <textarea
+                      rows={2}
+                      value={(editingLesson.keyKnowledge?.concepts || []).join('\n')}
+                      onChange={e => setEditingLesson({
+                        ...editingLesson,
+                        keyKnowledge: {
+                          ...editingLesson.keyKnowledge,
+                          concepts: e.target.value.split('\n')
+                        }
+                      })}
+                      className="w-full border p-2 rounded-lg font-sans"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-700">Trạng thái xuất bản:</label>
+                      <select
+                        value={editingLesson.status}
+                        onChange={e => setEditingLesson({ ...editingLesson, status: e.target.value })}
+                        className="w-full border p-2 rounded-lg bg-white"
+                      >
+                        <option value="published">Đã xuất bản (Học sinh xem được)</option>
+                        <option value="draft">Bản nháp (Chỉ giáo viên xem)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-700">Gắn nhãn mẫu:</label>
+                      <label className="flex items-center gap-2 mt-2 cursor-pointer text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={editingLesson.isSample || false}
+                          onChange={e => setEditingLesson({ ...editingLesson, isSample: e.target.checked })}
+                          className="rounded text-teal-600"
+                        />
+                        <span>Nội dung minh họa (Cần rà soát)</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 mt-4 border-t flex justify-end space-x-2">
+                  <button onClick={() => setEditingLesson(null)} className="px-4 py-2 border rounded-lg hover:bg-slate-50 font-semibold text-slate-700">
+                    Hủy
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!editingLesson.title.trim()) {
+                        alert('Vui lòng nhập tên bài học!');
+                        return;
+                      }
+                      setLessons(prev => {
+                        const exists = prev.some(l => l.id === editingLesson.id);
+                        return exists ? prev.map(l => l.id === editingLesson.id ? editingLesson : l) : [...prev, editingLesson];
+                      });
+                      alert('Đã lưu bài học thành công!');
+                      setEditingLesson(null);
+                    }}
+                    className="px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold shadow-sm transition-colors"
+                  >
+                    Lưu bài học ✓
+                  </button>
                 </div>
               </div>
             </div>

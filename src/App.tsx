@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Chapter, GradeLevel, Lesson, Resource, SiteSettings, TextbookInfo, UserProfile } from './types';
 import { DEMO_USERS, INITIAL_CHAPTERS, INITIAL_LESSONS, INITIAL_RESOURCES, INITIAL_SITE_SETTINGS, INITIAL_TEXTBOOKS } from './services/sampleData';
 import { Navbar } from './components/Navbar';
@@ -23,15 +23,36 @@ export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile>(DEMO_USERS[1]); // teacher_long
 
   // Database State (In-memory structured state with fallback/preview mode)
-  const [lessons, setLessons] = useState<Lesson[]>(INITIAL_LESSONS);
-  const [resources, setResources] = useState<Resource[]>(INITIAL_RESOURCES);
+  const [lessons, setLessons] = useState<Lesson[]>(() => {
+    const saved = localStorage.getItem('vatly_lessons');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return INITIAL_LESSONS;
+  });
+  const [resources, setResources] = useState<Resource[]>(() => {
+    const saved = localStorage.getItem('vatly_resources');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return INITIAL_RESOURCES;
+  });
   const [chapters] = useState<Chapter[]>(INITIAL_CHAPTERS);
+
   const [textbooks] = useState<TextbookInfo[]>(INITIAL_TEXTBOOKS);
   const [settings, setSettings] = useState<SiteSettings>(INITIAL_SITE_SETTINGS);
 
   // UI Modals
   const [isFirebaseModalOpen, setIsFirebaseModalOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  useEffect(() => {
+    localStorage.setItem('vatly_lessons', JSON.stringify(lessons));
+  }, [lessons]);
+
+  useEffect(() => {
+    localStorage.setItem('vatly_resources', JSON.stringify(resources));
+  }, [resources]);
 
   const addToast = (type: ToastMessage['type'], title: string, message?: string) => {
     const newToast: ToastMessage = {

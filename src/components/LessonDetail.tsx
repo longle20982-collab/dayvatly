@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Lesson, Resource } from '../types';
 import { MathFormula } from './MathFormula';
+import { TextWithKaTeX } from './TextWithKaTeX';
 import { InteractiveSimulator } from './InteractiveSimulators';
 import { parseEmbedUrl } from '../utils/embedHelpers';
 import { ReportModal } from './ReportModal';
@@ -23,6 +24,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({
   const [showPresentation, setShowPresentation] = useState(false);
   const [revealedSolutions, setRevealedSolutions] = useState<Record<string, boolean>>({});
   const [reportingResource, setReportingResource] = useState<{ id: string; title: string } | null>(null);
+  
+  // MCQ state
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const [mcqResults, setMcqResults] = useState<Record<string, 'correct' | 'incorrect'>>({});
 
   // Filter linked resources for this lesson
   const linkedResources = allResources.filter(r => 
@@ -38,6 +43,16 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({
       ...prev,
       [exId]: !prev[exId],
     }));
+  };
+
+  const handleOptionSelect = (exId: string, option: string, correctAnswer: string | undefined) => {
+    setSelectedOptions(prev => ({ ...prev, [exId]: option }));
+    if (correctAnswer) {
+      setMcqResults(prev => ({
+        ...prev,
+        [exId]: option.startsWith(correctAnswer.charAt(0)) || option === correctAnswer ? 'correct' : 'incorrect'
+      }));
+    }
   };
 
   return (
@@ -497,14 +512,33 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({
                         {/* MCQ options if any */}
                         {ex.options && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-                            {ex.options.map((opt, i) => (
-                              <div
-                                key={i}
-                                className="p-2.5 rounded-lg bg-white border border-slate-200 text-xs text-slate-700"
-                              >
-                                {opt}
-                              </div>
-                            ))}
+                            {ex.options.map((opt, i) => {
+                              const isSelected = selectedOptions[ex.id] === opt;
+                              const result = mcqResults[ex.id];
+                              let buttonClass = "p-2.5 rounded-lg border text-xs text-left transition-colors cursor-pointer ";
+                              
+                              if (isSelected) {
+                                if (result === 'correct') {
+                                  buttonClass += "bg-emerald-100 border-emerald-500 text-emerald-800 font-bold";
+                                } else if (result === 'incorrect') {
+                                  buttonClass += "bg-rose-100 border-rose-500 text-rose-800 font-bold";
+                                } else {
+                                  buttonClass += "bg-blue-100 border-blue-500 text-blue-800 font-bold";
+                                }
+                              } else {
+                                buttonClass += "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300";
+                              }
+
+                              return (
+                                <button
+                                  key={i}
+                                  onClick={() => handleOptionSelect(ex.id, opt, ex.correctAnswer)}
+                                  className={buttonClass}
+                                >
+                                  {opt}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
 
@@ -527,7 +561,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({
                                     </p>
                                   )}
                                   <p className="font-semibold text-emerald-900 mb-1">Hướng dẫn giải chi tiết:</p>
-                                  <p className="leading-relaxed">{ex.solutionGuide}</p>
+                                  <TextWithKaTeX text={ex.solutionGuide} />
                                 </div>
                               )}
                             </div>

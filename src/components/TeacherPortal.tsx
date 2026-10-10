@@ -36,6 +36,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
   // Form modal state
   const [editingResource, setEditingResource] = useState<Resource | null>(null);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [resourceCreationMode, setResourceCreationMode] = useState<'upload' | 'link' | 'compose'>('link');
 
@@ -74,6 +75,28 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     fileType: 'pdf',
   });
 
+  const getEmptyLesson = (): Lesson => ({
+    id: `les_${Date.now()}`,
+    grade: 10,
+    chapterId: chapters[0]?.id || 'c10_1',
+    chapterName: chapters[0]?.name || 'Chương 1',
+    title: '',
+    order: 1,
+    textbookId: 'ket_noi_tri_thuc',
+    status: 'draft',
+    authorId: currentUser.id,
+    authorName: currentUser.name,
+    isSpecialTopic: false,
+    isSample: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    objectives: { knowledge: [], skills: [], expectedOutcomes: [] },
+    keyKnowledge: { concepts: [], laws: [], formulas: [], commonErrors: [] },
+    illustrations: [],
+    practiceExercises: [],
+    linkedResourceIds: [],
+  });
+
   const handleStartCreate = () => {
     setEditingResource(getEmptyResource());
     setIsCreatingNew(true);
@@ -83,8 +106,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     setUploadedFileName(null);
   };
 
+  const handleStartCreateLesson = () => {
+    setEditingLesson(getEmptyLesson());
+    setIsCreatingNew(true);
+    setIsFormDirty(false);
+  };
+
   const handleStartEdit = (res: Resource) => {
-    // Check permission: Teacher can only edit own content; Admin can edit anything (Requirement 10)
     if (!isAdmin && res.authorId !== currentUser.id) {
       alert('Quyền hạn: Bạn chỉ có thể chỉnh sửa học liệu do chính mình tạo ra. Chỉ Quản trị viên mới có quyền sửa học liệu của giáo viên khác.');
       return;
@@ -96,6 +124,16 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     setUploadError(null);
   };
 
+  const handleStartEditLesson = (les: Lesson) => {
+    if (!isAdmin && les.authorId !== currentUser.id) {
+      alert('Quyền hạn: Bạn chỉ có thể chỉnh sửa bài học do chính mình tạo ra.');
+      return;
+    }
+    setEditingLesson({ ...les });
+    setIsCreatingNew(false);
+    setIsFormDirty(false);
+  };
+
   const handleCloseModal = () => {
     if (isFormDirty) {
       if (!window.confirm('Bạn có thay đổi chưa lưu trong biểu mẫu. Bạn có chắc chắn muốn đóng mà không lưu không?')) {
@@ -103,6 +141,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       }
     }
     setEditingResource(null);
+    setEditingLesson(null);
     setIsCreatingNew(false);
     setIsFormDirty(false);
   };
@@ -168,6 +207,26 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     setIsCreatingNew(false);
   };
 
+  const handleSaveLessonSubmit = (targetStatus: Lesson['status']) => {
+    if (!editingLesson) return;
+
+    if (!editingLesson.title.trim()) {
+      alert('Vui lòng nhập Tiêu đề bài học.');
+      return;
+    }
+
+    const updated: Lesson = {
+      ...editingLesson,
+      status: targetStatus,
+      updatedAt: new Date().toISOString(),
+    };
+
+    onSaveLesson(updated);
+    setIsFormDirty(false);
+    setEditingLesson(null);
+    setIsCreatingNew(false);
+  };
+
   // If user is a student/guest
   if (!isTeacherOrAdmin) {
     return (
@@ -215,6 +274,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         </div>
 
         <div className="flex items-center space-x-3">
+          <button
+            onClick={handleStartCreateLesson}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-all"
+          >
+            <span>➕</span>
+            <span>Thêm bài học mới</span>
+          </button>
           <button
             onClick={handleStartCreate}
             className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-all"
@@ -414,7 +480,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                           {les.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'}
                         </span>
                       </td>
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-right space-x-1 whitespace-nowrap">
+                        <button
+                          onClick={() => handleStartEditLesson(les)}
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-semibold transition-colors"
+                        >
+                          Sửa
+                        </button>
                         <button
                           onClick={() => onSelectLesson(les)}
                           className="px-3 py-1 bg-physics-navy text-white rounded font-medium hover:bg-physics-blue"
@@ -849,6 +921,158 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       Xuất bản ngay ✓
                     </button>
                   )}
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD / EDIT LESSON FORM */}
+      {editingLesson && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 my-8 max-h-[90vh] overflow-y-auto animate-scaleIn">
+            <div className="flex justify-between items-start pb-3 border-b border-slate-200 mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">
+                  {isCreatingNew ? 'Thêm bài học mới' : `Chỉnh sửa bài học: ${editingLesson.title}`}
+                </h3>
+              </div>
+              <button
+                onClick={handleCloseModal}
+                className="text-slate-400 hover:text-slate-600 text-xl font-bold ml-4"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                handleSaveLessonSubmit(editingLesson.status);
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Tiêu đề bài học * :
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editingLesson.title}
+                  onChange={e => {
+                    setEditingLesson({ ...editingLesson, title: e.target.value });
+                    setIsFormDirty(true);
+                  }}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-physics-teal focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Khối lớp:</label>
+                  <select
+                    value={editingLesson.grade}
+                    onChange={e => {
+                      setEditingLesson({ ...editingLesson, grade: parseInt(e.target.value) as GradeLevel });
+                      setIsFormDirty(true);
+                    }}
+                    className="w-full border border-slate-300 rounded-lg p-2 focus:outline-none"
+                  >
+                    <option value={10}>Vật lí 10</option>
+                    <option value={11}>Vật lí 11</option>
+                    <option value={12}>Vật lí 12</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Chương / Chủ đề:</label>
+                  <select
+                    value={editingLesson.chapterId}
+                    onChange={e => {
+                      const chap = chapters.find(c => c.id === e.target.value);
+                      if (chap) {
+                        setEditingLesson({ ...editingLesson, chapterId: chap.id, chapterName: chap.name });
+                        setIsFormDirty(true);
+                      }
+                    }}
+                    className="w-full border border-slate-300 rounded-lg p-2 focus:outline-none"
+                  >
+                    {chapters.filter(c => c.grade === editingLesson.grade).map(chap => (
+                      <option key={chap.id} value={chap.id}>{chap.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Mục tiêu kiến thức (mỗi dòng 1 mục tiêu):
+                </label>
+                <textarea
+                  rows={3}
+                  value={editingLesson.objectives.knowledge.join('\n')}
+                  onChange={e => {
+                    const lines = e.target.value.split('\n');
+                    setEditingLesson({ 
+                      ...editingLesson, 
+                      objectives: { ...editingLesson.objectives, knowledge: lines } 
+                    });
+                    setIsFormDirty(true);
+                  }}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-physics-teal focus:outline-none"
+                />
+              </div>
+              
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Mục tiêu kĩ năng (mỗi dòng 1 kĩ năng):
+                </label>
+                <textarea
+                  rows={3}
+                  value={editingLesson.objectives.skills.join('\n')}
+                  onChange={e => {
+                    const lines = e.target.value.split('\n');
+                    setEditingLesson({ 
+                      ...editingLesson, 
+                      objectives: { ...editingLesson.objectives, skills: lines } 
+                    });
+                    setIsFormDirty(true);
+                  }}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-physics-teal focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-slate-200 mt-6 flex flex-col-reverse sm:flex-row sm:justify-between items-center gap-3">
+                <p className="text-[10px] text-slate-400">
+                  {editingLesson.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'}
+                </p>
+
+                <div className="flex space-x-2 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold transition-colors flex-1 sm:flex-none"
+                  >
+                    Hủy
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSaveLessonSubmit('draft')}
+                    className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg font-semibold transition-colors flex-1 sm:flex-none"
+                  >
+                    Lưu nháp
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSaveLessonSubmit('published')}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-colors shadow-sm"
+                  >
+                    Lưu & Xuất bản
+                  </button>
                 </div>
               </div>
             </form>
