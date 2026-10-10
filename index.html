@@ -1,0 +1,2565 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KHÔNG GIAN HỌC TẬP VẬT LÍ 10–11–12</title>
+
+  <!-- Google Fonts: Be Vietnam Pro -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+
+  <!-- KaTeX CSS & JS for Math Formula Rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            physics: {
+              dark: '#0f2b5c',
+              navy: '#1e3a8a',
+              blue: '#2563eb',
+              light: '#f0f7ff',
+              teal: '#0d9488',
+              accent: '#14b8a6',
+              cyan: '#06b6d4',
+            }
+          },
+          fontFamily: {
+            sans: ['"Be Vietnam Pro"', 'Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+    }
+    .katex { font-size: 1.1em; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.15s ease-out forwards;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+  </style>
+
+  <!-- React 18 & Babel Standalone for Instant Browser Preview in Google AI Studio -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // --- UTILS: VIETNAMESE ACCENT REMOVER FOR ROBUST SEARCH ---
+    function removeVietnameseAccents(str) {
+      if (!str) return '';
+      return str
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .toLowerCase()
+        .trim();
+    }
+
+    function matchesSearch(target, keyword) {
+      if (!keyword || !keyword.trim()) return true;
+      if (!target) return false;
+      return removeVietnameseAccents(target).includes(removeVietnameseAccents(keyword));
+    }
+
+    // --- UTILS: URL & EMBED HELPER ---
+    function parseEmbedUrl(url) {
+      if (!url || !url.trim()) return { canEmbed: false, embedUrl: null, originalUrl: '' };
+      const cleanUrl = url.trim();
+      
+      // YouTube
+      const ytMatch = cleanUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+      if (ytMatch && ytMatch[1]) {
+        return {
+          canEmbed: true,
+          embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?rel=0&modestbranding=1`,
+          originalUrl: cleanUrl,
+        };
+      }
+
+      // PhET
+      if (cleanUrl.includes('phet.colorado.edu')) {
+        return { canEmbed: true, embedUrl: cleanUrl, originalUrl: cleanUrl };
+      }
+
+      // Canva
+      if (cleanUrl.includes('canva.com/design')) {
+        let canvaEmbed = cleanUrl;
+        if (!canvaEmbed.includes('embed')) canvaEmbed = canvaEmbed.replace(/\/view(\?.*)?$/, '/view?embed');
+        return { canEmbed: true, embedUrl: canvaEmbed, originalUrl: cleanUrl };
+      }
+
+      // Google Drive
+      if (cleanUrl.includes('drive.google.com')) {
+        const dMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+        if (dMatch && dMatch[1]) {
+          return { canEmbed: true, embedUrl: `https://drive.google.com/file/d/${dMatch[1]}/preview`, originalUrl: cleanUrl };
+        }
+      }
+
+      // Office PowerPoint Online
+      if (cleanUrl.includes('onedrive.live.com') || cleanUrl.includes('officeapps.live.com')) {
+        return { canEmbed: true, embedUrl: cleanUrl, originalUrl: cleanUrl };
+      }
+
+      return { canEmbed: false, embedUrl: null, originalUrl: cleanUrl };
+    }
+
+    // --- COMPONENT: KATEX MATH FORMULA ---
+    const MathFormula = ({ latex, displayMode = false, className = '' }) => {
+      const spanRef = useRef(null);
+      useEffect(() => {
+        if (!spanRef.current) return;
+        if (window.katex) {
+          try {
+            window.katex.render(latex, spanRef.current, { displayMode, throwOnError: false });
+          } catch (e) {
+            spanRef.current.innerText = latex;
+          }
+        } else {
+          spanRef.current.innerText = latex;
+        }
+      }, [latex, displayMode]);
+
+      return <span ref={spanRef} className={`font-mono text-physics-dark ${displayMode ? 'my-2 block text-center' : ''} ${className}`} />;
+    };
+
+    // --- COMPONENT: PHYSICS SIMULATOR CANVASES (10, 11, 12) ---
+    const InteractiveSimulator = ({ type }) => {
+      const [isRunning, setIsRunning] = useState(false);
+      const canvasRef = useRef(null);
+
+      // Params
+      const [v0, setV0] = useState(2);
+      const [acc, setAcc] = useState(1.5);
+      const [mass, setMass] = useState(2);
+      const [force, setForce] = useState(8);
+      const [friction, setFriction] = useState(0.1);
+      const [amp, setAmp] = useState(5);
+      const [omega, setOmega] = useState(3);
+      const [voltage, setVoltage] = useState(12);
+      const [resistance, setResistance] = useState(24);
+      const [power, setPower] = useState(800);
+      const [waterMass, setWaterMass] = useState(500);
+      const [gasVol, setGasVol] = useState(5);
+      const [gasTemp, setGasTemp] = useState(300);
+      const [time, setTime] = useState(0);
+
+      const handleReset = () => {
+        setIsRunning(false);
+        setTime(0);
+      };
+
+      useEffect(() => {
+        let animId;
+        let last = performance.now();
+
+        const loop = (now) => {
+          const dt = Math.min((now - last) / 1000, 0.05);
+          last = now;
+          if (isRunning) setTime(t => t + dt);
+
+          const canvas = canvasRef.current;
+          if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Motion 10
+            if (type === 'motion10') {
+              const d = v0 * time + 0.5 * acc * time * time;
+              const v = v0 + acc * time;
+              ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 4;
+              ctx.beginPath(); ctx.moveTo(30, 130); ctx.lineTo(canvas.width - 30, 130); ctx.stroke();
+              const px = Math.min(Math.max(40 + (d % 80) * ((canvas.width - 100) / 80), 40), canvas.width - 60);
+              ctx.fillStyle = '#1e3a8a'; ctx.fillRect(px - 20, 100, 40, 24);
+              ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.arc(px - 10, 126, 5, 0, Math.PI*2); ctx.arc(px + 10, 126, 5, 0, Math.PI*2); ctx.fill();
+              ctx.fillStyle = '#0d9488'; ctx.font = '11px sans-serif'; ctx.fillText(`v = ${v.toFixed(1)} m/s, d = ${d.toFixed(1)} m`, 40, 30);
+            }
+            // 2. Newton 10
+            else if (type === 'newton10') {
+              const f_fric = friction * mass * 9.8;
+              const netF = Math.max(force - f_fric, 0);
+              const a = netF / mass;
+              const d = 0.5 * a * time * time;
+              ctx.fillStyle = '#e2e8f0'; ctx.fillRect(20, 120, canvas.width - 40, 20);
+              const px = Math.min(40 + (d % 60) * ((canvas.width - 120) / 60), canvas.width - 80);
+              ctx.fillStyle = '#1e3a8a'; ctx.fillRect(px - 25, 85, 50, 35);
+              ctx.fillStyle = '#ffffff'; ctx.font = '10px sans-serif'; ctx.fillText(`m=${mass}kg`, px - 18, 106);
+              ctx.fillStyle = '#0d9488'; ctx.font = '11px sans-serif'; ctx.fillText(`a = F/m = ${(netF/mass).toFixed(2)} m/s²`, 40, 30);
+            }
+            // 3. Oscillator 11
+            else if (type === 'oscillator11') {
+              const xVal = amp * Math.cos(omega * time);
+              const eqX = 220; const massX = eqX + xVal * 12;
+              ctx.strokeStyle = '#64748b'; ctx.lineWidth = 2;
+              ctx.beginPath(); ctx.moveTo(40, 90);
+              for (let i = 0; i < 16; i++) ctx.lineTo(40 + i * ((massX - 55) / 16) + (massX - 55) / 32, 90 + (i % 2 === 0 ? -10 : 10));
+              ctx.lineTo(massX - 15, 90); ctx.stroke();
+              ctx.fillStyle = '#2563eb'; ctx.fillRect(massX - 15, 75, 30, 30);
+              ctx.fillStyle = '#ef4444'; ctx.fillText(`x = ${xVal.toFixed(1)} cm`, 40, 30);
+            }
+            // 4. Ohm 11
+            else if (type === 'ohm11') {
+              const current = (voltage / resistance).toFixed(2);
+              ctx.strokeStyle = '#1e3a8a'; ctx.lineWidth = 3;
+              ctx.strokeRect(50, 40, 240, 90);
+              ctx.fillStyle = '#0d9488'; ctx.font = 'bold 12px sans-serif'; ctx.fillText(`I = U/R = ${voltage}V / ${resistance}Ω = ${current} A`, 50, 25);
+            }
+            // 5. Heat 12
+            else if (type === 'heat12') {
+              const dM = Math.min((power * time) / 2260, waterMass);
+              ctx.fillStyle = '#60a5fa'; ctx.fillRect(80, 60, 100, 80);
+              ctx.fillStyle = '#0d9488'; ctx.font = '12px sans-serif';
+              ctx.fillText(`L = (P·t)/Δm ≈ 2.26 × 10⁶ J/kg (Đã hóa hơi: ${dM.toFixed(1)}g)`, 40, 30);
+            }
+            // 6. Gas 12
+            else if (type === 'gas12') {
+              const pAtm = ((0.08 * gasTemp) / gasVol).toFixed(2);
+              ctx.strokeStyle = '#334155'; ctx.lineWidth = 2; ctx.strokeRect(60, 45, 200, 80);
+              ctx.fillStyle = '#eff6ff'; ctx.fillRect(60, 45, (gasVol / 10) * 200, 80);
+              ctx.fillStyle = '#0f2b5c'; ctx.font = 'bold 12px sans-serif';
+              ctx.fillText(`P = ${pAtm} atm, V = ${gasVol} L, T = ${gasTemp} K => p·V = ${(pAtm * gasVol).toFixed(1)}`, 40, 25);
+            }
+          }
+          animId = requestAnimationFrame(loop);
+        };
+        animId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(animId);
+      }, [isRunning, type, v0, acc, mass, force, friction, amp, omega, voltage, resistance, power, waterMass, gasVol, gasTemp, time]);
+
+      return (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden my-3">
+          <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex justify-between items-center text-xs">
+            <span className="font-bold text-physics-navy flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Thực hành mô phỏng số học tương tác
+            </span>
+            <div className="space-x-1.5">
+              <button
+                onClick={() => setIsRunning(!isRunning)}
+                className={`px-3 py-1 rounded text-white font-medium ${isRunning ? 'bg-amber-600' : 'bg-emerald-600'}`}
+              >
+                {isRunning ? 'Tạm dừng ⏸' : 'Chạy ▶'}
+              </button>
+              <button onClick={handleReset} className="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded text-slate-700">
+                Làm lại ↺
+              </button>
+            </div>
+          </div>
+          <div className="p-2 bg-slate-100 flex justify-center">
+            <canvas ref={canvasRef} width={500} height={160} className="bg-white rounded border border-slate-200 max-w-full" />
+          </div>
+          <div className="p-3 bg-white border-t border-slate-200 grid grid-cols-2 gap-3 text-xs">
+            {type === 'motion10' && (
+              <>
+                <div><span>v₀ (m/s): <strong>{v0}</strong></span><input type="range" min="0" max="8" step="0.5" value={v0} onChange={e=>setV0(parseFloat(e.target.value))} className="w-full" /></div>
+                <div><span>a (m/s²): <strong>{acc}</strong></span><input type="range" min="-2" max="4" step="0.5" value={acc} onChange={e=>setAcc(parseFloat(e.target.value))} className="w-full" /></div>
+              </>
+            )}
+            {type === 'newton10' && (
+              <>
+                <div><span>Lực F (N): <strong>{force}</strong></span><input type="range" min="2" max="15" value={force} onChange={e=>setForce(parseFloat(e.target.value))} className="w-full" /></div>
+                <div><span>Khối lượng m (kg): <strong>{mass}</strong></span><input type="range" min="1" max="5" value={mass} onChange={e=>setMass(parseFloat(e.target.value))} className="w-full" /></div>
+              </>
+            )}
+            {type === 'oscillator11' && (
+              <>
+                <div><span>Biên độ A (cm): <strong>{amp}</strong></span><input type="range" min="2" max="8" value={amp} onChange={e=>setAmp(parseFloat(e.target.value))} className="w-full" /></div>
+                <div><span>Tần số góc ω (rad/s): <strong>{omega}</strong></span><input type="range" min="1" max="6" value={omega} onChange={e=>setOmega(parseFloat(e.target.value))} className="w-full" /></div>
+              </>
+            )}
+            {type === 'ohm11' && (
+              <>
+                <div><span>Hiệu điện thế U (V): <strong>{voltage}</strong></span><input type="range" min="0" max="24" value={voltage} onChange={e=>setVoltage(parseFloat(e.target.value))} className="w-full" /></div>
+                <div><span>Điện trở R (Ω): <strong>{resistance}</strong></span><input type="range" min="6" max="60" value={resistance} onChange={e=>setResistance(parseFloat(e.target.value))} className="w-full" /></div>
+              </>
+            )}
+            {type === 'heat12' && (
+              <>
+                <div><span>Công suất P (W): <strong>{power}</strong></span><input type="range" min="300" max="1500" step="50" value={power} onChange={e=>setPower(parseFloat(e.target.value))} className="w-full" /></div>
+                <div><span>Nước (g): <strong>{waterMass}</strong></span><input type="range" min="200" max="800" step="50" value={waterMass} onChange={e=>setWaterMass(parseFloat(e.target.value))} className="w-full" /></div>
+              </>
+            )}
+            {type === 'gas12' && (
+              <>
+                <div><span>Thể tích V (L): <strong>{gasVol}</strong></span><input type="range" min="2" max="9" step="0.5" value={gasVol} onChange={e=>setGasVol(parseFloat(e.target.value))} className="w-full" /></div>
+                <div><span>Nhiệt độ T (K): <strong>{gasTemp}</strong></span><input type="range" min="250" max="450" step="10" value={gasTemp} onChange={e=>setGasTemp(parseInt(e.target.value))} className="w-full" /></div>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    // --- INITIAL DATA AS REQUIRED IN SECTION 13 & 4 ---
+    const INITIAL_TEXTBOOKS_DATA = [
+      { id: 'ket_noi_tri_thuc', name: 'Kết nối tri thức với cuộc sống', publisher: 'NXB Giáo dục Việt Nam', isDefault: true },
+      { id: 'canh_dieu', name: 'Cánh diều', publisher: 'NXB Đại học Sư phạm', isDefault: false },
+      { id: 'chan_troi_sang_tao', name: 'Chân trời sáng tạo', publisher: 'NXB Giáo dục Việt Nam', isDefault: false },
+    ];
+
+    const INITIAL_CHAPTERS_DATA = [
+      // Vật lí 10
+      { id: 'c10_1', grade: 10, textbookId: 'ket_noi_tri_thuc', name: 'Mở đầu và phương pháp nghiên cứu', order: 1, isSpecialTopic: false },
+      { id: 'c10_2', grade: 10, textbookId: 'ket_noi_tri_thuc', name: 'Động học', order: 2, isSpecialTopic: false },
+      { id: 'c10_3', grade: 10, textbookId: 'ket_noi_tri_thuc', name: 'Động lực học', order: 3, isSpecialTopic: false },
+      { id: 'c10_4', grade: 10, textbookId: 'ket_noi_tri_thuc', name: 'Công – năng lượng – công suất', order: 4, isSpecialTopic: false },
+      { id: 'c10_5', grade: 10, textbookId: 'ket_noi_tri_thuc', name: 'Động lượng', order: 5, isSpecialTopic: false },
+      { id: 'c10_6', grade: 10, textbookId: 'ket_noi_tri_thuc', name: 'Chuyển động tròn', order: 6, isSpecialTopic: false },
+      { id: 'c10_7', grade: 10, textbookId: 'ket_noi_tri_thuc', name: 'Biến dạng của vật rắn', order: 7, isSpecialTopic: false },
+      { id: 'c10_sp', grade: 10, textbookId: 'ket_noi_tri_thuc', name: 'Chuyên đề học tập Vật lí 10', order: 8, isSpecialTopic: true },
+
+      // Vật lí 11
+      { id: 'c11_1', grade: 11, textbookId: 'ket_noi_tri_thuc', name: 'Dao động', order: 1, isSpecialTopic: false },
+      { id: 'c11_2', grade: 11, textbookId: 'ket_noi_tri_thuc', name: 'Sóng', order: 2, isSpecialTopic: false },
+      { id: 'c11_3', grade: 11, textbookId: 'ket_noi_tri_thuc', name: 'Điện trường', order: 3, isSpecialTopic: false },
+      { id: 'c11_4', grade: 11, textbookId: 'ket_noi_tri_thuc', name: 'Dòng điện và mạch điện', order: 4, isSpecialTopic: false },
+      { id: 'c11_sp', grade: 11, textbookId: 'ket_noi_tri_thuc', name: 'Chuyên đề học tập Vật lí 11', order: 5, isSpecialTopic: true },
+
+      // Vật lí 12
+      { id: 'c12_1', grade: 12, textbookId: 'ket_noi_tri_thuc', name: 'Vật lí nhiệt', order: 1, isSpecialTopic: false },
+      { id: 'c12_2', grade: 12, textbookId: 'ket_noi_tri_thuc', name: 'Khí lí tưởng', order: 2, isSpecialTopic: false },
+      { id: 'c12_3', grade: 12, textbookId: 'ket_noi_tri_thuc', name: 'Từ trường và cảm ứng điện từ', order: 3, isSpecialTopic: false },
+      { id: 'c12_4', grade: 12, textbookId: 'ket_noi_tri_thuc', name: 'Vật lí hạt nhân', order: 4, isSpecialTopic: false },
+      { id: 'c12_sp', grade: 12, textbookId: 'ket_noi_tri_thuc', name: 'Chuyên đề học tập Vật lí 12', order: 5, isSpecialTopic: true },
+    ];
+
+    const INITIAL_LESSONS_DATA = [
+      // 1. Lớp 10: Chuyển động thẳng biến đổi đều
+      {
+        id: 'lesson_10_1',
+        grade: 10,
+        chapterId: 'c10_2',
+        chapterName: 'Động học',
+        title: 'Chuyển động thẳng biến đổi đều',
+        order: 1,
+        textbookId: 'ket_noi_tri_thuc',
+        status: 'published',
+        authorName: 'Ths: Lê Long - QT',
+        isSample: true,
+        updatedAt: '2026-10-01',
+        objectives: {
+          knowledge: ['Định nghĩa gia tốc, phương trình vận tốc, độ dịch chuyển trong chuyển động biến đổi đều.'],
+          skills: ['Vẽ và đọc đồ thị v-t; đo thời gian bằng cổng quang điện để tính gia tốc.'],
+          expectedOutcomes: ['Vận dụng giải bài toán quãng đường phanh an toàn trong thực tế giao thông.']
+        },
+        keyKnowledge: {
+          concepts: [
+            'Chuyển động thẳng biến đổi đều có gia tốc tức thời không đổi (a = const).',
+            'Nhanh dần đều: a cùng hướng v (a · v > 0); Chậm dần đều: a ngược hướng v (a · v < 0).'
+          ],
+          laws: ['Độ biến thiên vận tốc tỉ lệ thuận với thời gian chuyển động.'],
+          formulas: [
+            { name: 'Công thức vận tốc', latex: 'v = v_0 + a \\cdot t', explanation: 'v: vận tốc; v₀: vận tốc đầu; a: gia tốc', unit: 'm/s, m/s², s', applicability: 'a = const' },
+            { name: 'Độ dịch chuyển', latex: 'd = v_0 t + \\frac{1}{2} a t^2', explanation: 'd: độ dịch chuyển', unit: 'm', applicability: 'Hệ quy chiếu thẳng' },
+            { name: 'Hệ thức độc lập thời gian', latex: 'v^2 - v_0^2 = 2 \\cdot a \\cdot d', explanation: 'Liên hệ v, a, d không có biến thời gian t', unit: 'm/s, m/s², m', applicability: 'Mọi thời điểm' }
+          ],
+          commonErrors: ['Nhầm lẫn dấu của gia tốc a và v₀ trong chuyển động chậm dần đều; nhầm lẫn giữa quãng đường s và độ dịch chuyển d khi đổi chiều.']
+        },
+        illustrations: [
+          { title: 'Đồ thị vận tốc – thời gian (v - t)', url: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80', caption: 'Độ dốc của đồ thị chính là gia tốc a; diện tích dưới đồ thị biểu diễn độ dịch chuyển d.' }
+        ],
+        practiceExercises: [
+          { id: 'p1', question: 'Một ô tô hãm phanh với vận tốc đầu v₀ = 20 m/s và gia tốc hãm a = -2 m/s². Quãng đường ô tô đi được đến khi dừng lại là?', options: ['A. 50 m', 'B. 100 m', 'C. 200 m', 'D. 40 m'], correctAnswer: 'B. 100 m', solutionGuide: 'Áp dụng v² - v₀² = 2ad => 0 - 20² = 2*(-2)*d => d = 100 m.' }
+        ],
+        linkedResourceIds: ['res_exp_10_1', 'res_shared_measure', 'res_doc_10_1', 'res_vid_10_1', 'res_vid_10_exp']
+      },
+
+      // 2. Lớp 10: Định luật II Newton
+      {
+        id: 'lesson_10_2',
+        grade: 10,
+        chapterId: 'c10_3',
+        chapterName: 'Động lực học',
+        title: 'Định luật II Newton',
+        order: 2,
+        textbookId: 'ket_noi_tri_thuc',
+        status: 'published',
+        authorName: 'Ths: Lê Long - QT',
+        isSample: true,
+        updatedAt: '2026-10-02',
+        objectives: {
+          knowledge: ['Định luật II Newton: Gia tốc cùng hướng với lực tác dụng và tỉ lệ nghịch với khối lượng m.'],
+          skills: ['Vẽ giản đồ vectơ lực và phân tích hợp lực.'],
+          expectedOutcomes: ['Giải thích mức quán tính của các vật có khối lượng khác nhau.']
+        },
+        keyKnowledge: {
+          concepts: ['Khối lượng là đại lượng đặc trưng cho mức quán tính của vật; lực truyền gia tốc cho vật.'],
+          laws: ['Định luật II Newton: Gia tốc thu được tỉ lệ thuận với hợp lực và tỉ lệ nghịch với khối lượng.'],
+          formulas: [
+            { name: 'Định luật II Newton', latex: '\\vec{a} = \\frac{\\vec{F}_{hl}}{m} \\quad \\Longleftrightarrow \\quad \\vec{F}_{hl} = m \\cdot \\vec{a}', explanation: 'F: Hợp lực tác dụng; m: khối lượng; a: gia tốc', unit: 'N (kg·m/s²), kg, m/s²', applicability: 'Hệ quy chiếu quán tính' }
+          ],
+          commonErrors: ['Quên trừ lực ma sát khi tính hợp lực; quên đổi khối lượng từ gam sang kilogam.']
+        },
+        illustrations: [
+          { title: 'Sơ đồ phân tích lực xe kéo', url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80', caption: 'Phân tích trọng lực P, phản lực N, lực kéo F và ma sát Fms.' }
+        ],
+        practiceExercises: [
+          { id: 'p2', question: 'Vật khối lượng 2 kg tác dụng lực 10 N không ma sát thì sau 3 s vận tốc là bao nhiêu (v₀ = 0)?', options: ['A. 5 m/s', 'B. 15 m/s', 'C. 30 m/s', 'D. 20 m/s'], correctAnswer: 'B. 15 m/s', solutionGuide: 'a = F/m = 10/2 = 5 m/s² => v = at = 5*3 = 15 m/s.' }
+        ],
+        linkedResourceIds: ['res_sim_10_2', 'res_shared_measure', 'res_doc_10_2', 'res_vid_10_2']
+      },
+
+      // 3. Lớp 11: Dao động điều hòa
+      {
+        id: 'lesson_11_1',
+        grade: 11,
+        chapterId: 'c11_1',
+        chapterName: 'Dao động',
+        title: 'Dao động điều hòa',
+        order: 1,
+        textbookId: 'ket_noi_tri_thuc',
+        status: 'published',
+        authorName: 'Ths: Lê Long - QT',
+        isSample: true,
+        updatedAt: '2026-10-03',
+        objectives: {
+          knowledge: ['Định nghĩa dao động điều hòa, biên độ A, tần số góc ω, pha ban đầu φ.'],
+          skills: ['Biểu diễn dao động bằng vectơ quay Fresnel và vòng tròn lượng giác.'],
+          expectedOutcomes: ['Xác định được li độ và vận tốc tại thời điểm bất kì.']
+        },
+        keyKnowledge: {
+          concepts: ['Dao động điều hòa là dao động có li độ biến thiên theo quy luật hàm cosin hoặc sin của thời gian.'],
+          laws: ['Gia tốc luôn tỉ lệ và ngược dấu với li độ: a = -ω²x.'],
+          formulas: [
+            { name: 'Phương trình li độ', latex: 'x = A \\cos(\\omega t + \\varphi)', explanation: 'A: biên độ; ω: tần số góc; φ: pha đầu', unit: 'cm (hoặc m), rad/s, rad', applicability: 'Hệ dao động tuần hoàn tuyến tính' },
+            { name: 'Phương trình vận tốc', latex: 'v = -\\omega A \\sin(\\omega t + \\varphi) = \\omega A \\cos\\left(\\omega t + \\varphi + \\frac{\\pi}{2}\\right)', explanation: 'v vuông pha sớm π/2 so với x', unit: 'cm/s', applicability: 'Đạo hàm x theo t' },
+            { name: 'Hệ thức độc lập thời gian', latex: 'A^2 = x^2 + \\frac{v^2}{\\omega^2}', explanation: 'Liên hệ giữa x, v, A, ω', unit: 'cm, cm/s, rad/s', applicability: 'Mọi thời điểm' }
+          ],
+          commonErrors: ['Nhầm lẫn giữa cm và m trong hệ thức độc lập thời gian; nhầm tần số góc ω và tần số f.']
+        },
+        illustrations: [
+          { title: 'Vòng tròn lượng giác pha dao động', url: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80', caption: 'Hình chiếu của chất điểm chuyển động tròn đều là một dao động điều hòa.' }
+        ],
+        practiceExercises: [
+          { id: 'p3', question: 'Chất điểm dao động x = 4 cos(2πt + π/3) (cm). Tần số dao động là:', options: ['A. 2 Hz', 'B. 1 Hz', 'C. 4 Hz', 'D. 2π Hz'], correctAnswer: 'B. 1 Hz', solutionGuide: 'f = ω / (2π) = 2π / 2π = 1 Hz.' }
+        ],
+        linkedResourceIds: ['res_sim_11_1', 'res_vid_11_1', 'res_canva_11_1']
+      },
+
+      // 4. Lớp 11: Định luật Ohm cho đoạn mạch chỉ có điện trở
+      {
+        id: 'lesson_11_2',
+        grade: 11,
+        chapterId: 'c11_4',
+        chapterName: 'Dòng điện và mạch điện',
+        title: 'Định luật Ohm cho đoạn mạch chỉ có điện trở',
+        order: 2,
+        textbookId: 'ket_noi_tri_thuc',
+        status: 'published',
+        authorName: 'Ths: Lê Long - QT',
+        isSample: true,
+        updatedAt: '2026-10-04',
+        objectives: {
+          knowledge: ['Định luật Ohm: Cường độ dòng điện I tỉ lệ thuận với U và tỉ lệ nghịch với R.'],
+          skills: ['Mắc mạch đo Vôn kế song song và Ampe kế nối tiếp.'],
+          expectedOutcomes: ['Tính toán thông số dòng điện trong mạch điện một chiều.']
+        },
+        keyKnowledge: {
+          concepts: ['Điện trở R đặc trưng cho mức cản trở dòng điện của vật dẫn kim loại.'],
+          laws: ['Định luật Ohm: I = U / R.'],
+          formulas: [
+            { name: 'Định luật Ohm', latex: 'I = \\frac{U}{R} \\quad \\Longleftrightarrow \\quad U = I \\cdot R', explanation: 'U: điện áp; I: dòng điện; R: điện trở', unit: 'V (Vôn), A (Ampe), Ω (Ôm)', applicability: 'Vật dẫn kim loại ở nhiệt độ ổn định' }
+          ],
+          commonErrors: ['Mắc nhầm vôn kế nối tiếp; tưởng điện trở R biến đổi khi tăng điện áp U.']
+        },
+        illustrations: [
+          { title: 'Sơ đồ mạch đo kiểm chứng định luật Ohm', url: 'https://images.unsplash.com/photo-1555664424-778a1e5e1b48?auto=format&fit=crop&w=600&q=80', caption: 'Ampe kế mắc nối tiếp, vôn kế mắc song song điện trở R.' }
+        ],
+        practiceExercises: [
+          { id: 'p4', question: 'Đặt U = 12 V vào điện trở R = 20 Ω thì dòng điện I là:', options: ['A. 0.6 A', 'B. 1.67 A', 'C. 240 A', 'D. 0.4 A'], correctAnswer: 'A. 0.6 A', solutionGuide: 'I = U/R = 12/20 = 0.6 A.' }
+        ],
+        linkedResourceIds: ['res_sim_11_2', 'res_doc_11_2', 'res_vid_11_2']
+      },
+
+      // 5. Lớp 12: Nhiệt hóa hơi riêng
+      {
+        id: 'lesson_12_1',
+        grade: 12,
+        chapterId: 'c12_1',
+        chapterName: 'Vật lí nhiệt',
+        title: 'Nhiệt hóa hơi riêng',
+        order: 1,
+        textbookId: 'ket_noi_tri_thuc',
+        status: 'published',
+        authorName: 'Ths: Lê Long - QT',
+        isSample: true,
+        updatedAt: '2026-10-05',
+        objectives: {
+          knowledge: ['Định nghĩa nhiệt hóa hơi riêng L (J/kg) và công thức nhiệt lượng Q = L·m.'],
+          skills: ['Tiến hành thí nghiệm đun sôi nước trên cân điện tử và tính toán sai số.'],
+          expectedOutcomes: ['Giải thích ứng dụng làm mát bằng hơi nước và điều hòa thân nhiệt.']
+        },
+        keyKnowledge: {
+          concepts: ['Nhiệt hóa hơi riêng là nhiệt lượng cần để làm 1 kg chất lỏng hóa hơi hoàn toàn ở nhiệt độ sôi.'],
+          laws: ['Quá trình chuyển pha lỏng sang khí ở nhiệt độ sôi xảy ra đẳng nhiệt.'],
+          formulas: [
+            { name: 'Nhiệt lượng hóa hơi', latex: 'Q = L \\cdot m \\quad \\Longleftrightarrow \\quad L = \\frac{Q}{m}', explanation: 'Q: nhiệt lượng; L: nhiệt hóa hơi riêng; m: khối lượng bay hơi', unit: 'J, J/kg, kg', applicability: 'Ở nhiệt độ sôi của chất' },
+            { name: 'Công suất nhiệt điện', latex: 'Q = P \\cdot \\tau = U \\cdot I \\cdot \\tau', explanation: 'P: công suất ấm; τ: thời gian sôi', unit: 'W, s, J', applicability: 'Bỏ qua hao phí nhiệt' }
+          ],
+          commonErrors: ['Nhầm nhiệt dung riêng c (J/kg·K) với nhiệt hóa hơi riêng L (J/kg).']
+        },
+        illustrations: [
+          { title: 'Mô hình chuyển pha phân tử lỏng - khí', url: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?auto=format&fit=crop&w=600&q=80', caption: 'Phá vỡ liên kết phân tử khi sôi để chuyển sang thể khí.' }
+        ],
+        practiceExercises: [
+          { id: 'p5', question: 'Biết nhiệt hóa hơi riêng của nước là 2.26 × 10⁶ J/kg. Nhiệt lượng làm bay hơi 0.5 kg nước ở 100°C là:', options: ['A. 1.13 × 10⁶ J', 'B. 4.52 × 10⁶ J', 'C. 2.26 × 10⁶ J', 'D. 1.13 × 10³ J'], correctAnswer: 'A. 1.13 × 10⁶ J', solutionGuide: 'Q = L * m = 2.26*10^6 * 0.5 = 1.13*10^6 J.' }
+        ],
+        linkedResourceIds: ['res_sim_12_1', 'res_vid_12_1', 'res_doc_12_1']
+      },
+
+      // 6. Lớp 12: Khí lí tưởng
+      {
+        id: 'lesson_12_2',
+        grade: 12,
+        chapterId: 'c12_2',
+        chapterName: 'Khí lí tưởng',
+        title: 'Khí lí tưởng',
+        order: 2,
+        textbookId: 'ket_noi_tri_thuc',
+        status: 'published',
+        authorName: 'Ths: Lê Long - QT',
+        isSample: true,
+        updatedAt: '2026-10-06',
+        objectives: {
+          knowledge: ['Mô hình khí lí tưởng, định luật Boyle (T = const), phương trình Clapeyron.'],
+          skills: ['Vẽ đồ thị đẳng nhiệt p-V và tính toán thông số trạng thái khí.'],
+          expectedOutcomes: ['Giải thích hiện tượng tăng áp suất lốp xe khi trời nắng nóng.']
+        },
+        keyKnowledge: {
+          concepts: ['Khí lí tưởng coi các phân tử là chất điểm chỉ tương tác khi va chạm đàn hồi.'],
+          laws: ['Định luật Boyle: p · V = const khi nhiệt độ T không đổi.'],
+          formulas: [
+            { name: 'Phương trình trạng thái', latex: '\\frac{p_1 V_1}{T_1} = \\frac{p_2 V_2}{T_2} \\quad \\Longleftrightarrow \\quad \\frac{p V}{T} = \\text{const}', explanation: 'p: áp suất; V: thể tích; T: nhiệt độ Kelvin', unit: 'Pa, m³ (hoặc L), K (t°C + 273)', applicability: 'Lượng khí xác định m = const' },
+            { name: 'Định luật Boyle', latex: 'p_1 V_1 = p_2 V_2 \\quad (T = \\text{const})', explanation: 'Quá trình đẳng nhiệt', unit: 'Pa, m³', applicability: 'T = const' }
+          ],
+          commonErrors: ['Dùng nhiệt độ Celsius thay vì nhiệt độ tuyệt đối Kelvin T = t + 273.']
+        },
+        illustrations: [
+          { title: 'Chuyển động nhiệt của các phân tử khí', url: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=600&q=80', caption: 'Va chạm phân tử lên thành bình sinh ra áp suất chất khí.' }
+        ],
+        practiceExercises: [
+          { id: 'p6', question: 'Khí ở 27°C có áp suất 2 atm. Nung nóng đẳng tích đến 127°C thì áp suất khí là:', options: ['A. 9.4 atm', 'B. 2.67 atm', 'C. 3.0 atm', 'D. 4.0 atm'], correctAnswer: 'B. 2.67 atm', solutionGuide: 'T1 = 27 + 273 = 300 K; T2 = 127 + 273 = 400 K => p2 = p1*(T2/T1) = 2*(400/300) = 2.67 atm.' }
+        ],
+        linkedResourceIds: ['res_sim_12_2', 'res_vid_12_2', 'res_doc_12_2']
+      }
+    ];
+
+    const INITIAL_RESOURCES_DATA = [
+      {
+        id: 'res_exp_10_1',
+        title: 'Thí nghiệm thực tế: Đo gia tốc bằng cổng quang điện và đồng hồ MC-963A',
+        description: 'Bố trí máng nghiêng và đồng hồ hiện số MC-963A đo thời gian xe trượt qua hai cổng quang điện.',
+        type: 'experiment',
+        grade: 10,
+        linkedLessonIds: ['lesson_10_1'],
+        author: 'Ths: Lê Long - QT',
+        source: 'Phòng thực hành THPT',
+        status: 'published',
+        tags: ['đo gia tốc', 'cổng quang điện', 'động học'],
+        experimentData: {
+          category: 'thí nghiệm thực',
+          purpose: 'Đo gia tốc của xe trượt trên máng nghiêng và kiểm chứng công thức d = 1/2 · a · t².',
+          theory: 'Xe chuyển động nhanh dần đều: a = 2d / t².',
+          equipment: ['Máng nhôm có thước đo dài 1000 mm', 'Xe trượt cản quang', '2 cổng quang điện E1, E2', 'Đồng hồ số MC-963A'],
+          steps: ['Đặt cổng 1 tại 10 cm, cổng 2 tại 60 cm (d = 50 cm)', 'Chọn MODE A <-> B', 'Nhả xe và ghi thời gian t'],
+          safetyNotes: ['Đỡ xe ở chân dốc tránh rơi vỡ', 'Không để dây vướng ray'],
+          commonMistakes: ['Cản quang bị lệch', 'Chọn nhầm MODE đồng hồ'],
+          sampleDataTable: {
+            headers: ['Lần đo', 'Khoảng cách d (m)', 'Thời gian t (s)', 't² (s²)', 'Gia tốc a (m/s²)'],
+            rows: [[1, 0.50, 1.412, 1.994, 0.502], [2, 0.50, 1.418, 2.011, 0.497], [3, 0.50, 1.409, 1.985, 0.504]]
+          },
+          dataAnalysisGuide: 'Tính trung bình a_tb và sai số ngẫu nhiên.'
+        }
+      },
+      // Shared resource linked to BOTH Lesson 1 and Lesson 2 (Requirement 1 & 6)
+      {
+        id: 'res_shared_measure',
+        title: 'Cẩm nang dùng chung: Phương pháp đo lường và xử lí sai số thực nghiệm Cơ học (Bài 1 & 2)',
+        description: 'Hướng dẫn sử dụng thước kẹp, cổng quang điện và quy tắc tính sai số tuyệt đối/tương đối (liên kết chung Bài 1 và 2).',
+        type: 'document',
+        grade: 10,
+        linkedLessonIds: ['lesson_10_1', 'lesson_10_2'],
+        author: 'Ths: Lê Long - QT',
+        source: 'Tổ Vật lí THPT',
+        status: 'published',
+        url: 'https://drive.google.com/file/d/1Z8Y7X6W5V4U3T2S1R0Q9P8O7N6M5/preview',
+        fileType: 'pdf',
+        fileSize: 1850000,
+        tags: ['sai số', 'đo lường', 'dùng chung']
+      },
+      {
+        id: 'res_sim_10_2',
+        title: 'Mô phỏng PhET: Lực và Chuyển động (Định luật II Newton)',
+        description: 'Mô phỏng PhET Interactive Colorado khảo sát lực kéo, ma sát và khối lượng lên gia tốc.',
+        type: 'simulation',
+        grade: 10,
+        linkedLessonIds: ['lesson_10_2'],
+        author: 'PhET Colorado',
+        source: 'https://phet.colorado.edu/sims/html/forces-and-motion-basics/latest/forces-and-motion-basics_all.html',
+        status: 'published',
+        url: 'https://phet.colorado.edu/sims/html/forces-and-motion-basics/latest/forces-and-motion-basics_all.html',
+        embedType: 'phet',
+        tags: ['PhET', 'định luật newton', 'mô phỏng']
+      },
+      {
+        id: 'res_sim_11_1',
+        title: 'Mô phỏng: Con lắc lò xo dao động điều hòa & Vòng tròn lượng giác pha',
+        description: 'Mô phỏng con lắc dao động đồng bộ với vectơ quay và đồ thị li độ x-t theo thời gian thực.',
+        type: 'simulation',
+        grade: 11,
+        linkedLessonIds: ['lesson_11_1'],
+        author: 'Ths: Lê Long - QT',
+        source: 'Vật lí THPT',
+        status: 'published',
+        embedType: 'custom_sim',
+        tags: ['con lắc lò xo', 'dao động điều hòa', 'pha dao động']
+      },
+      {
+        id: 'res_canva_11_1',
+        title: 'Slide bài giảng tương tác Canva: Khám phá Dao động điều hòa (Nhúng trực tiếp)',
+        description: 'Bài trình chiếu Canva trực quan, nhúng xem trực tiếp trên bài học để trình chiếu bảng thông minh.',
+        type: 'presentation',
+        grade: 11,
+        linkedLessonIds: ['lesson_11_1'],
+        author: 'Ths: Lê Long - QT',
+        source: 'Canva Education',
+        status: 'published',
+        url: 'https://www.canva.com/design/DAFexample123/view?embed',
+        fileType: 'pptx',
+        tags: ['canva', 'slide', 'bài giảng điện tử']
+      },
+      {
+        id: 'res_sim_11_2',
+        title: 'Mô phỏng mạch điện tương tác: Đặc tuyến Vôn – Ampe và Định luật Ohm',
+        description: 'Thay đổi hiệu điện thế U và điện trở R, đồng hồ ảo đo dòng điện I và vẽ đường đặc tuyến tuyến tính.',
+        type: 'simulation',
+        grade: 11,
+        linkedLessonIds: ['lesson_11_2'],
+        author: 'Ths: Lê Long - QT',
+        source: 'Phòng thí nghiệm ảo',
+        status: 'published',
+        embedType: 'custom_sim',
+        tags: ['định luật ohm', 'mạch điện', 'vôn kế']
+      },
+      {
+        id: 'res_sim_12_1',
+        title: 'Mô phỏng nhiệt học: Quá trình đun sôi và đo nhiệt hóa hơi riêng của nước',
+        description: 'Mô phỏng ấm đun công suất P, khối lượng nước bay hơi theo thời gian và tính toán L.',
+        type: 'simulation',
+        grade: 12,
+        linkedLessonIds: ['lesson_12_1'],
+        author: 'Ths: Lê Long - QT',
+        source: 'Vật lí 12 Đổi mới',
+        status: 'published',
+        embedType: 'custom_sim',
+        tags: ['nhiệt hóa hơi', 'ấm đun', 'nhiệt học']
+      },
+      {
+        id: 'res_sim_12_2',
+        title: 'Mô phỏng buồng khí: Định luật Boyle – Charles và Piston chuyển động',
+        description: 'Mô hình phân tử khí va chạm trong xilanh, kéo pittông đổi thể tích V và quan sát áp kế p.',
+        type: 'simulation',
+        grade: 12,
+        linkedLessonIds: ['lesson_12_2'],
+        author: 'Ths: Lê Long - QT',
+        source: 'Mô phỏng Khí lí tưởng',
+        status: 'published',
+        embedType: 'custom_sim',
+        tags: ['khí lí tưởng', 'định luật boyle', 'piston']
+      },
+      {
+        id: 'res_vid_10_1',
+        title: 'Vật lí 10 Bài 9: Chuyển động thẳng biến đổi đều (Kết nối tri thức)',
+        description: 'Bài giảng chi tiết hệ thống hóa công thức vận tốc v = v₀ + at, độ dịch chuyển d, hệ thức độc lập thời gian và đồ thị v-t (SGK Vật lí 10 Kết nối tri thức).',
+        type: 'video_lesson',
+        grade: 10,
+        linkedLessonIds: ['lesson_10_1'],
+        author: 'Cô Nguyễn Dung - VietJack',
+        source: 'Kênh VietJack THPT',
+        status: 'published',
+        url: 'https://www.youtube.com/watch?v=OB4SjDuTnhI',
+        duration: '42:18',
+        guidingQuestions: ['Độ dốc của đồ thị v-t biểu thị đại lượng nào?', 'Khi xe dừng lại thì vận tốc tức thời bằng bao nhiêu?']
+      },
+      {
+        id: 'res_vid_10_exp',
+        title: 'Video thực nghiệm: Khảo sát chuyển động & đo gia tốc với cổng quang điện (Vật lí 10)',
+        description: 'Ghi hình thí nghiệm thực tế đo thời gian xe chuyển động trên máng nghiêng bằng cổng quang điện và đồng hồ hiện số MC-963A.',
+        type: 'video_experiment',
+        grade: 10,
+        linkedLessonIds: ['lesson_10_1'],
+        author: 'Vật Lí Thực Nghiệm THPT',
+        source: 'Kênh Thí nghiệm Vật lí',
+        status: 'published',
+        url: 'https://www.youtube.com/watch?v=6Q0J3HcHeEs',
+        duration: '07:35',
+        guidingQuestions: ['Tại sao phải dùng tấm cản quang hẹp để kích hoạt cổng quang điện?', 'Gia tốc tính được từ thực nghiệm chịu ảnh hưởng của yếu tố ma sát nào?']
+      },
+      {
+        id: 'res_vid_10_2',
+        title: 'Vật lí 10 Bài 15: Định luật II Newton (Kết nối tri thức)',
+        description: 'Bài giảng chi tiết Định luật II Newton (F = ma), quán tính của vật, hợp lực tác dụng và phương pháp giải bài toán động lực học cơ bản.',
+        type: 'video_lesson',
+        grade: 10,
+        linkedLessonIds: ['lesson_10_2'],
+        author: 'Cô Nguyễn Dung - VietJack',
+        source: 'Kênh VietJack THPT',
+        status: 'published',
+        url: 'https://www.youtube.com/watch?v=denoYcH-Mfs',
+        duration: '38:45',
+        guidingQuestions: ['Gia tốc của vật có cùng hướng với hợp lực tác dụng không?', 'Khi lực không đổi, khối lượng m tăng gấp đôi thì gia tốc thay đổi thế nào?']
+      },
+      {
+        id: 'res_vid_11_1',
+        title: 'Vật lí 11 Bài 1: Dao động điều hòa (Kết nối tri thức với cuộc sống)',
+        description: 'Bài giảng lý thuyết dao động điều hòa: phương trình li độ x = A cos(ωt + φ), chu kì T, tần số f, pha ban đầu và mối liên hệ với chuyển động tròn đều.',
+        type: 'video_lesson',
+        grade: 11,
+        linkedLessonIds: ['lesson_11_1'],
+        author: 'Kênh KHTN & Vật lí THPT',
+        source: 'Vật lí 11 Kết nối tri thức',
+        status: 'published',
+        url: 'https://www.youtube.com/watch?v=_J2Ltm6tRKQ',
+        duration: '31:20',
+        guidingQuestions: ['Li độ x đạt giá trị lớn nhất khi nào?', 'Vận tốc sớm pha hay trễ pha hơn li độ một góc bằng bao nhiêu?']
+      },
+      {
+        id: 'res_vid_11_2',
+        title: 'Video thực nghiệm: Bộ dụng cụ thí nghiệm kiểm chứng Định luật Ohm (Vật lí 11)',
+        description: 'Bộ dụng cụ thí nghiệm thực tế lắp ráp mạch điện gồm nguồn điện một chiều, biến trở, điện trở nhiệt và ampe kế/vôn kế khảo sát định luật Ohm.',
+        type: 'video_experiment',
+        grade: 11,
+        linkedLessonIds: ['lesson_11_2'],
+        author: 'Thiết Bị Khoa Học THPT',
+        source: 'Thí nghiệm Điện một chiều',
+        status: 'published',
+        url: 'https://www.youtube.com/watch?v=oK8S69NGwvs',
+        duration: '05:12',
+        guidingQuestions: ['Vôn kế mắc song song hay nối tiếp với điện trở mẫu?', 'Đồ thị quan hệ giữa I và U có hình dạng đường gì?']
+      },
+      {
+        id: 'res_vid_12_1',
+        title: 'Vật lí 12 Thực hành: Đo nhiệt hóa hơi riêng của nước (Chương trình mới)',
+        description: 'Quy trình thực nghiệm đo nhiệt hóa hơi riêng của nước theo SGK Vật lí 12 mới (bộ Chân trời sáng tạo / Kết nối tri thức), sử dụng ấm đun điện và cân hiện số ghi nhận Δm.',
+        type: 'video_experiment',
+        grade: 12,
+        linkedLessonIds: ['lesson_12_1'],
+        author: 'Thầy Lâm 1E - Vật lí THPT',
+        source: 'Thực hành Vật lí 12 Đổi mới',
+        status: 'published',
+        url: 'https://www.youtube.com/watch?v=XW161L4eS8E',
+        duration: '12:45',
+        guidingQuestions: ['Tại sao phải bắt đầu bấm giờ khi nước đã sôi sùng sục ở 100°C?', 'Hao phí nhiệt ra không khí làm cho giá trị L đo được lớn hơn hay nhỏ hơn giá trị lí thuyết?']
+      },
+      {
+        id: 'res_vid_12_2',
+        title: 'Video thực nghiệm: Thí nghiệm kiểm tra Định luật Boyle - Vật lí 12',
+        description: 'Thí nghiệm thực hành nén xilanh khí kín, đo áp suất p tương ứng với thể tích V, kiểm chứng quá trình đẳng nhiệt và tính tích p · V.',
+        type: 'video_experiment',
+        grade: 12,
+        linkedLessonIds: ['lesson_12_2'],
+        author: 'Kênh Thí Nghiệm Vật Lí THPT',
+        source: 'Thí nghiệm Vật lí 12',
+        status: 'published',
+        url: 'https://www.youtube.com/watch?v=i4CcQQil00k',
+        duration: '06:50',
+        guidingQuestions: ['Tại sao phải ấn piston chậm rãi khi nén khí?', 'Tích số p · V có thay đổi đáng kể khi nén xilanh không?']
+      },
+      {
+        id: 'res_doc_10_1',
+        title: 'Phiếu học tập số 1: Bài tập rèn luyện chuyển động thẳng biến đổi đều (PDF)',
+        description: 'Hệ thống 15 bài toán đồ thị và phương trình chuyển động có hướng dẫn chi tiết.',
+        type: 'worksheet',
+        grade: 10,
+        linkedLessonIds: ['lesson_10_1'],
+        author: 'Ths: Lê Long - QT',
+        source: 'Tài liệu Vật lí 10',
+        status: 'published',
+        url: 'https://drive.google.com/file/d/1B7A6C5D4E3F2G1H0J9K8L7M6N5P4Q/preview',
+        fileType: 'pdf',
+        fileSize: 2450000
+      },
+      {
+        id: 'res_doc_10_2',
+        title: 'Slide bài giảng PowerPoint: Định luật II Newton và ứng dụng thực tiễn (PPTX)',
+        description: 'Tệp trình chiếu hỗ trợ giảng dạy phân tích các lực tác dụng lên phương tiện giao thông.',
+        type: 'presentation',
+        grade: 10,
+        linkedLessonIds: ['lesson_10_2'],
+        author: 'Ths: Lê Long - QT',
+        source: 'Thư viện bài giảng số',
+        status: 'published',
+        url: 'https://view.officeapps.live.com/op/embed.aspx?src=https://example.com/dinh_luat_2_newton.pptx',
+        fileType: 'pptx'
+      },
+      {
+        id: 'res_doc_11_2',
+        title: 'Chuyên đề bài tập: Định luật Ohm cho các loại mạch điện (DOCX/PDF)',
+        description: 'Tài liệu phân loại bài tập từ mức nhận biết đến vận dụng cao.',
+        type: 'document',
+        grade: 11,
+        linkedLessonIds: ['lesson_11_2'],
+        author: 'Tổ Vật lí THPT',
+        source: 'Chuyên đề Vật lí 11',
+        status: 'published',
+        url: 'https://drive.google.com/file/d/1X2Y3Z4W5V6U7T8S9R0Q/preview',
+        fileType: 'docx',
+        fileSize: 1250000
+      },
+      {
+        id: 'res_doc_12_1',
+        title: 'Bảng số liệu mẫu & Xử lí sai số thực nghiệm nhiệt hóa hơi riêng (XLSX)',
+        description: 'Tệp Excel mẫu tính toán tự động trung bình, phương sai và vẽ đồ thị mất khối lượng nước.',
+        type: 'worksheet',
+        grade: 12,
+        linkedLessonIds: ['lesson_12_1'],
+        author: 'Ths: Lê Long - QT',
+        source: 'Thực hành Vật lí 12',
+        status: 'published',
+        url: 'https://example.com/bang_so_lieu.xlsx',
+        fileType: 'xlsx',
+        fileSize: 450000
+      },
+      {
+        id: 'res_doc_12_2',
+        title: 'Infographic tóm tắt: Ba đẳng quá trình và Các định luật Khí lí tưởng',
+        description: 'Sơ đồ hình ảnh chất lượng cao tóm tắt định luật Boyle, Charles, Gay-Lussac.',
+        type: 'document',
+        grade: 12,
+        linkedLessonIds: ['lesson_12_2'],
+        author: 'Ths: Lê Long - QT',
+        source: 'Sơ đồ tư duy',
+        status: 'published',
+        url: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=1000&q=80',
+        fileType: 'image'
+      },
+      // Draft item to test Requirement 7 (Guest cannot see draft)
+      {
+        id: 'res_draft_1',
+        title: '[Bản nháp] Khảo sát hiệu ứng Doppler trong sóng âm',
+        description: 'Đang soạn thảo, chưa xuất bản.',
+        type: 'simulation',
+        grade: 11,
+        linkedLessonIds: [],
+        author: 'Ths: Lê Long - QT',
+        source: 'Nháp cá nhân',
+        status: 'draft',
+        tags: ['nháp', 'sóng']
+      }
+    ];
+
+    // --- MAIN APP COMPONENT ---
+    function App() {
+      const [currentTab, setCurrentTab] = useState('home');
+      const [activeLesson, setActiveLesson] = useState(null);
+      const [userRole, setUserRole] = useState('teacher'); // 'student', 'teacher', 'admin'
+      const [lessons, setLessons] = useState(INITIAL_LESSONS_DATA);
+      const [resources, setResources] = useState(INITIAL_RESOURCES_DATA);
+      const [chapters, setChapters] = useState(INITIAL_CHAPTERS_DATA);
+      const [textbooks, setTextbooks] = useState(INITIAL_TEXTBOOKS_DATA);
+      const [globalSearch, setGlobalSearch] = useState('');
+      const [selectedChapterId, setSelectedChapterId] = useState('all');
+      const [selectedTextbook, setSelectedTextbook] = useState('all');
+      const [gradeSearch, setGradeSearch] = useState('');
+      const [selectedResType, setSelectedResType] = useState('all');
+      const [newChapterName, setNewChapterName] = useState('');
+      const [newChapterGrade, setNewChapterGrade] = useState(10);
+      const [newTextbookName, setNewTextbookName] = useState('');
+      const [authorLine, setAuthorLine] = useState('Ths: Lê Long - QT'); // Editable in settings
+      const [siteTitle, setSiteTitle] = useState('KHÔNG GIAN HỌC TẬP VẬT LÍ 10–11–12');
+      const [showFirebaseModal, setShowFirebaseModal] = useState(false);
+      const [showPresentation, setShowPresentation] = useState(false);
+      const [lessonTab, setLessonTab] = useState('knowledge'); // Active tab in lesson detail
+      const [revealedAnswers, setRevealedAnswers] = useState({});
+      const [activeExperimentModal, setActiveExperimentModal] = useState(null);
+      const [activeVideoModal, setActiveVideoModal] = useState(null);
+      const [reportModalItem, setReportModalItem] = useState(null);
+
+      // Teacher Portal State
+      const [teacherTab, setTeacherTab] = useState('resources');
+      const [editingResource, setEditingResource] = useState(null);
+      const [createMode, setCreateMode] = useState('link'); // 'upload', 'link', 'compose'
+      const [uploadProgress, setUploadProgress] = useState(null);
+      const [uploadError, setUploadError] = useState(null);
+
+      // Escape key for presentation mode (Requirement 5)
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.key === 'Escape' && showPresentation) {
+            setShowPresentation(false);
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [showPresentation]);
+
+      // Public views only see published items (Requirement 3 & 7)
+      const publicLessons = lessons.filter(l => l.status === 'published');
+      const publicResources = resources.filter(r => r.status === 'published');
+
+      // Global search filtering
+      const searchResults = globalSearch.trim() ? {
+        lessons: publicLessons.filter(l =>
+          matchesSearch(l.title, globalSearch) ||
+          matchesSearch(l.chapterName, globalSearch) ||
+          (l.keyKnowledge && l.keyKnowledge.concepts && l.keyKnowledge.concepts.some(c => matchesSearch(c, globalSearch)))
+        ),
+        resources: publicResources.filter(r =>
+          matchesSearch(r.title, globalSearch) ||
+          matchesSearch(r.description, globalSearch) ||
+          (r.tags && r.tags.some(t => matchesSearch(t, globalSearch)))
+        )
+      } : null;
+
+      // Handlers
+      const handleSelectGrade = (g) => {
+        setCurrentTab(`grade${g}`);
+        setActiveLesson(null);
+        setSelectedChapterId('all');
+        setSelectedTextbook('all');
+        setGradeSearch('');
+        setSelectedResType('all');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      const openLesson = (les) => {
+        setActiveLesson(les);
+        setLessonTab('knowledge');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      const handleSaveResource = (resToSave, newStatus) => {
+        const target = { ...resToSave, status: newStatus || resToSave.status };
+        setResources(prev => {
+          const exists = prev.some(r => r.id === target.id);
+          return exists ? prev.map(r => r.id === target.id ? target : r) : [target, ...prev];
+        });
+
+        // Many-to-many sync with lessons (Requirement 1 & 6)
+        setLessons(prev => prev.map(l => {
+          const isLinked = target.linkedLessonIds.includes(l.id);
+          const has = l.linkedResourceIds.includes(target.id);
+          if (isLinked && !has) return { ...l, linkedResourceIds: [...l.linkedResourceIds, target.id] };
+          if (!isLinked && has) return { ...l, linkedResourceIds: l.linkedResourceIds.filter(id => id !== target.id) };
+          return l;
+        }));
+
+        setEditingResource(null);
+        alert(`Đã lưu học liệu "${target.title}" thành công!`);
+      };
+
+      const handleSimulatedUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file || !editingResource) return;
+        setUploadError(null);
+        setUploadProgress(10);
+
+        const lower = file.name.toLowerCase();
+        const isAllowed = ['.pdf', '.pptx', '.docx', '.xlsx', '.mp4', '.webm', '.jpg', '.png'].some(ext => lower.endsWith(ext));
+        if (!isAllowed) {
+          setUploadError('Định dạng tệp không được hỗ trợ. Chỉ nhận PDF, Word, PowerPoint, Excel, Video MP4 hoặc Ảnh.');
+          setUploadProgress(null);
+          return;
+        }
+
+        // Simulate progress
+        let p = 20;
+        const interval = setInterval(() => {
+          p += 25;
+          setUploadProgress(Math.min(p, 100));
+          if (p >= 100) {
+            clearInterval(interval);
+            let fType = 'pdf';
+            if (lower.endsWith('.pptx')) fType = 'pptx';
+            else if (lower.endsWith('.docx')) fType = 'docx';
+            else if (lower.endsWith('.xlsx')) fType = 'xlsx';
+            else if (lower.endsWith('.mp4')) fType = 'video';
+            setEditingResource(prev => ({
+              ...prev,
+              url: URL.createObjectURL(file),
+              fileType: fType,
+              fileSize: file.size
+            }));
+          }
+        }, 120);
+      };
+
+      // Breadcrumb generator
+      const renderBreadcrumbs = () => {
+        const list = [{ label: 'Trang chủ', action: () => { setCurrentTab('home'); setActiveLesson(null); } }];
+        if (currentTab === 'grade10') list.push({ label: 'Vật lí 10', action: () => setActiveLesson(null) });
+        if (currentTab === 'grade11') list.push({ label: 'Vật lí 11', action: () => setActiveLesson(null) });
+        if (currentTab === 'grade12') list.push({ label: 'Vật lí 12', action: () => setActiveLesson(null) });
+        if (currentTab === 'experiments') list.push({ label: 'Kho thí nghiệm & Mô phỏng' });
+        if (currentTab === 'videos') list.push({ label: 'Thư viện video bài học' });
+        if (currentTab === 'documents') list.push({ label: 'Thư viện tài liệu & Slide' });
+        if (currentTab === 'teacher') list.push({ label: 'Khu vực giáo viên' });
+        if (activeLesson) {
+          list.push({ label: activeLesson.chapterName });
+          list.push({ label: activeLesson.title });
+        }
+        return (
+          <nav className="bg-white border-b border-slate-200 py-2 px-4 sm:px-8 text-xs text-slate-600">
+            <div className="max-w-7xl mx-auto flex items-center space-x-2 overflow-x-auto whitespace-nowrap">
+              {list.map((item, idx) => (
+                <React.Fragment key={idx}>
+                  {idx > 0 && <span className="text-slate-400">/</span>}
+                  {item.action && idx < list.length - 1 ? (
+                    <button onClick={item.action} className="hover:text-teal-600 hover:underline">{item.label}</button>
+                  ) : (
+                    <span className="font-semibold text-physics-navy">{item.label}</span>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+          </nav>
+        );
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col justify-between">
+          {/* HEADER & NAVBAR */}
+          <header className="sticky top-0 z-40 bg-[#0f2b5c] text-white shadow-md">
+            {/* Top Bar: Preview Mode & Fast Role Switcher (Requirement 10 & 15) */}
+            <div className="bg-[#091b3a] px-4 py-1.5 text-xs border-b border-blue-900/50 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowFirebaseModal(true)}
+                  className="flex items-center space-x-1 px-2 py-0.5 rounded bg-blue-950/80 hover:bg-blue-900 border border-blue-700/60 text-[11px]"
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                  <span>Bản xem trước (Chế độ mô phỏng đám mây)</span>
+                  <span className="text-teal-300 ml-1 underline">Cấu hình</span>
+                </button>
+                <span className="text-slate-400 hidden sm:inline">|</span>
+                <span className="text-slate-300 hidden sm:inline">Chuẩn GDPT 2018</span>
+              </div>
+
+              {/* Role Toggle Switcher */}
+              <div className="flex items-center space-x-2 text-xs">
+                <span className="text-slate-300 hidden md:inline">Đổi vai trò kiểm thử:</span>
+                <div className="flex rounded bg-blue-900/80 p-0.5 border border-blue-700">
+                  <button
+                    onClick={() => setUserRole('student')}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                      userRole === 'student' ? 'bg-teal-600 text-white font-bold' : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    🎓 Học sinh
+                  </button>
+                  <button
+                    onClick={() => setUserRole('teacher')}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                      userRole === 'teacher' ? 'bg-teal-600 text-white font-bold' : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    👨‍🏫 Giáo viên
+                  </button>
+                  <button
+                    onClick={() => setUserRole('admin')}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                      userRole === 'admin' ? 'bg-teal-600 text-white font-bold' : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    🛡 Quản trị
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Navbar */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+              <div
+                onClick={() => { setCurrentTab('home'); setActiveLesson(null); }}
+                className="flex items-center space-x-3 cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-blue-600 flex items-center justify-center text-xl shadow">
+                  ⚛
+                </div>
+                <div>
+                  <span className="text-base sm:text-lg font-bold tracking-tight block leading-tight text-white">
+                    {siteTitle}
+                  </span>
+                  <span className="text-[10px] text-teal-300 block">
+                    Không gian học tập & Học liệu số
+                  </span>
+                </div>
+              </div>
+
+              <nav className="hidden lg:flex items-center space-x-1 text-sm font-medium">
+                {[
+                  { id: 'home', label: 'Trang chủ' },
+                  { id: 'grade10', label: 'Vật lí 10' },
+                  { id: 'grade11', label: 'Vật lí 11' },
+                  { id: 'grade12', label: 'Vật lí 12' },
+                  { id: 'experiments', label: 'Thí nghiệm' },
+                  { id: 'videos', label: 'Video' },
+                  { id: 'documents', label: 'Tài liệu' }
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => { setCurrentTab(item.id); setActiveLesson(null); }}
+                    className={`px-3 py-2 rounded-lg transition-colors ${
+                      currentTab === item.id ? 'bg-teal-600 text-white font-bold' : 'text-slate-200 hover:bg-blue-900/60'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+
+              <button
+                onClick={() => { setCurrentTab('teacher'); setActiveLesson(null); }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all shadow ${
+                  currentTab === 'teacher' ? 'bg-amber-500 text-slate-900 font-bold' : 'bg-teal-600 hover:bg-teal-500 text-white'
+                }`}
+              >
+                <span>⚙</span>
+                <span>Khu vực giáo viên</span>
+              </button>
+            </div>
+          </header>
+
+          {/* BREADCRUMBS */}
+          {renderBreadcrumbs()}
+
+          {/* MAIN BODY ROUTING */}
+          <main className="flex-1">
+            {/* 1. LESSON DETAIL VIEW */}
+            {activeLesson ? (
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <button
+                    onClick={() => setActiveLesson(null)}
+                    className="text-xs font-bold text-physics-navy hover:text-teal-600"
+                  >
+                    ← Quay lại danh sách bài học
+                  </button>
+                  <div className="flex items-center space-x-2">
+                    {activeLesson.isSample && (
+                      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300">
+                        ⚠ Nội dung minh họa – cần giáo viên rà soát
+                      </span>
+                    )}
+                    <button
+                      onClick={() => setShowPresentation(true)}
+                      className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow"
+                    >
+                      <span>📺</span>
+                      <span>Chế độ trình chiếu (Esc)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Lesson Header Card */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 mb-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-physics-navy">
+                      Vật lí {activeLesson.grade}
+                    </span>
+                    <span className="text-xs text-slate-400">•</span>
+                    <span className="text-xs text-slate-600 font-medium">{activeLesson.chapterName}</span>
+                    <span className="text-xs text-slate-400">•</span>
+                    <span className="text-xs text-slate-500">Bộ sách: Kết nối tri thức với cuộc sống</span>
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-physics-dark mb-2">
+                    {activeLesson.title}
+                  </h1>
+                  <p className="text-xs text-slate-500">
+                    Tác giả: <strong className="text-slate-700">{activeLesson.authorName}</strong> • Cập nhật: {activeLesson.updatedAt}
+                  </p>
+                </div>
+
+                {/* 7 Content Tabs (Section 5) */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                  <div className="flex border-b border-slate-200 overflow-x-auto text-xs sm:text-sm font-semibold custom-scrollbar">
+                    {[
+                      { id: 'objectives', label: '🎯 1. Mục tiêu' },
+                      { id: 'knowledge', label: '📐 2. Kiến thức trọng tâm' },
+                      { id: 'illustrations', label: '🖼 3. Minh họa' },
+                      { id: 'experiments', label: '⚡ 4. Thí nghiệm – Mô phỏng' },
+                      { id: 'videos', label: '🎬 5. Video' },
+                      { id: 'practice', label: '❓ 6. Luyện tập' },
+                      { id: 'documents', label: '📁 7. Tài liệu & Slide Canva/PPTX' }
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setLessonTab(tab.id)}
+                        className={`px-4 py-3 border-b-2 whitespace-nowrap transition-colors ${
+                          lessonTab === tab.id ? 'border-physics-navy text-physics-navy font-bold bg-blue-50/50' : 'border-transparent text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="p-6">
+                    {/* Tab 1: Objectives */}
+                    {lessonTab === 'objectives' && (
+                      <div className="space-y-4 text-sm">
+                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                          <h3 className="font-bold text-physics-dark mb-2">📘 Yêu cầu cần đạt về Kiến thức</h3>
+                          <ul className="list-disc pl-5 space-y-1 text-slate-700">
+                            {activeLesson.objectives.knowledge.map((k, i) => <li key={i}>{k}</li>)}
+                          </ul>
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                          <h3 className="font-bold text-physics-dark mb-2">🛠 Kĩ năng thực hành & Phương pháp</h3>
+                          <ul className="list-disc pl-5 space-y-1 text-slate-700">
+                            {activeLesson.objectives.skills.map((s, i) => <li key={i}>{s}</li>)}
+                          </ul>
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                          <h3 className="font-bold text-physics-dark mb-2">🌟 Kết quả học tập mong đợi</h3>
+                          <ul className="list-disc pl-5 space-y-1 text-slate-700">
+                            {activeLesson.objectives.expectedOutcomes.map((o, i) => <li key={i}>{o}</li>)}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tab 2: Key Knowledge & KaTeX Formulas */}
+                    {lessonTab === 'knowledge' && (
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-base font-bold text-physics-dark mb-2 border-b pb-1">💡 Khái niệm & Định luật</h3>
+                          <ul className="space-y-1.5 text-sm text-slate-700 list-disc pl-5">
+                            {activeLesson.keyKnowledge.concepts.map((c, i) => <li key={i}>{c}</li>)}
+                          </ul>
+                        </div>
+
+                        <div>
+                          <h3 className="text-base font-bold text-physics-dark mb-3 border-b pb-1">📐 Hệ thống công thức KaTeX & Đơn vị chuẩn</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {activeLesson.keyKnowledge.formulas.map((form, i) => (
+                              <div key={i} className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                                <h4 className="font-bold text-physics-navy text-xs mb-2">{form.name}</h4>
+                                <div className="bg-white p-3 rounded-lg border border-slate-200 text-center my-2">
+                                  <MathFormula latex={form.latex} displayMode={true} className="text-lg" />
+                                </div>
+                                <div className="text-xs text-slate-600 space-y-1 mt-2 pt-2 border-t border-slate-200">
+                                  <p><strong>Ý nghĩa:</strong> {form.explanation}</p>
+                                  <p><strong>Đơn vị:</strong> {form.unit}</p>
+                                  <p><strong>Điều kiện:</strong> {form.applicability}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs sm:text-sm text-rose-950">
+                          <h4 className="font-bold text-rose-800 mb-1 flex items-center gap-1">
+                            <span>⚠</span> Lỗi sai phổ biến học sinh thường mắc phải:
+                          </h4>
+                          <ul className="list-disc pl-5 space-y-1">
+                            {activeLesson.keyKnowledge.commonErrors.map((err, i) => <li key={i}>{err}</li>)}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tab 3: Illustrations */}
+                    {lessonTab === 'illustrations' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {activeLesson.illustrations.map((ill, i) => (
+                          <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                            <img src={ill.url} alt={ill.title} className="w-full h-52 object-cover" />
+                            <div className="p-4">
+                              <h4 className="font-bold text-slate-800 text-sm mb-1">{ill.title}</h4>
+                              <p className="text-xs text-slate-600">{ill.caption}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Tab 4: Experiments & Live Simulations */}
+                    {lessonTab === 'experiments' && (
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="font-bold text-physics-dark text-sm mb-2">🎮 Mô phỏng tương tác bài học:</h3>
+                          {activeLesson.id === 'lesson_10_1' && <InteractiveSimulator type="motion10" />}
+                          {activeLesson.id === 'lesson_10_2' && <InteractiveSimulator type="newton10" />}
+                          {activeLesson.id === 'lesson_11_1' && <InteractiveSimulator type="oscillator11" />}
+                          {activeLesson.id === 'lesson_11_2' && <InteractiveSimulator type="ohm11" />}
+                          {activeLesson.id === 'lesson_12_1' && <InteractiveSimulator type="heat12" />}
+                          {activeLesson.id === 'lesson_12_2' && <InteractiveSimulator type="gas12" />}
+                        </div>
+
+                        <h3 className="font-bold text-physics-dark text-sm pt-4 border-t">🔬 Danh mục học liệu thí nghiệm liên kết:</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {resources.filter(r => (activeLesson.linkedResourceIds.includes(r.id) || r.linkedLessonIds.includes(activeLesson.id)) && (r.type === 'experiment' || r.type === 'simulation')).map(r => (
+                            <div key={r.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col justify-between">
+                              <div>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-100 text-teal-800 uppercase">{r.type}</span>
+                                <h4 className="font-bold text-slate-800 text-sm mt-1 mb-1">{r.title}</h4>
+                                <p className="text-xs text-slate-500 mb-3">{r.description}</p>
+                              </div>
+                              <div className="pt-2 border-t flex justify-between items-center text-xs">
+                                <button onClick={() => setReportModalItem(r)} className="text-slate-400 hover:text-rose-600">🚩 Báo lỗi</button>
+                                <button onClick={() => setActiveExperimentModal(r)} className="px-3 py-1 bg-physics-navy text-white rounded font-medium">Chi tiết 🔬</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tab 5: Videos (Experiment & Lesson videos) */}
+                    {lessonTab === 'videos' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {resources.filter(r => (activeLesson.linkedResourceIds.includes(r.id) || r.linkedLessonIds.includes(activeLesson.id)) && (r.type === 'video_experiment' || r.type === 'video_lesson')).map(vid => {
+                          const embed = parseEmbedUrl(vid.url);
+                          return (
+                            <div key={vid.id} className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden flex flex-col justify-between">
+                              <div>
+                                {embed.canEmbed && embed.embedUrl ? (
+                                  <div className="aspect-video w-full bg-black">
+                                    <iframe src={embed.embedUrl} title={vid.title} className="w-full h-full border-0" allowFullScreen />
+                                  </div>
+                                ) : (
+                                  <div className="aspect-video w-full bg-slate-800 flex items-center justify-center p-4 text-center">
+                                    <a href={vid.url} target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-teal-600 text-white rounded text-xs font-semibold">Mở nguồn video ↗</a>
+                                  </div>
+                                )}
+                                <div className="p-4">
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                                    {vid.type === 'video_experiment' ? 'Video thí nghiệm thực' : 'Video bài giảng'}
+                                  </span>
+                                  <h4 className="font-bold text-slate-800 text-sm mt-1 mb-1">{vid.title}</h4>
+                                  <p className="text-xs text-slate-600 mb-3">{vid.description}</p>
+                                </div>
+                              </div>
+                              <div className="p-3 bg-slate-100 border-t flex justify-between items-center text-xs">
+                                <span className="text-slate-500">{vid.author}</span>
+                                <button onClick={() => setReportModalItem(vid)} className="text-slate-400 hover:text-rose-600">🚩 Báo lỗi</button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Tab 6: Practice Exercises */}
+                    {lessonTab === 'practice' && (
+                      <div className="space-y-4">
+                        {activeLesson.practiceExercises.map((ex, i) => {
+                          const isShown = revealedAnswers[ex.id];
+                          return (
+                            <div key={ex.id} className="p-5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                              <p className="font-bold text-physics-navy mb-2">Câu hỏi #{i + 1}:</p>
+                              <p className="text-slate-800 mb-3">{ex.question}</p>
+                              {ex.options && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                                  {ex.options.map((opt, oIdx) => (
+                                    <div key={oIdx} className="p-2 bg-white rounded border border-slate-200 text-xs text-slate-700">{opt}</div>
+                                  ))}
+                                </div>
+                              )}
+                              <button
+                                onClick={() => setRevealedAnswers(prev => ({ ...prev, [ex.id]: !prev[ex.id] }))}
+                                className="text-xs font-bold text-physics-navy hover:text-teal-600"
+                              >
+                                {isShown ? '▼ Ẩn hướng dẫn giải & đáp án' : '▶ Mở hướng dẫn giải & đáp án'}
+                              </button>
+                              {isShown && (
+                                <div className="mt-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-950 animate-fadeIn">
+                                  {ex.correctAnswer && <p className="font-bold text-emerald-800 mb-1">Đáp án: {ex.correctAnswer}</p>}
+                                  <p><strong>Hướng dẫn:</strong> {ex.solutionGuide}</p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Tab 7: Documents, Canva & PowerPoint Embeds */}
+                    {lessonTab === 'documents' && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {resources.filter(r => (activeLesson.linkedResourceIds.includes(r.id) || r.linkedLessonIds.includes(activeLesson.id)) && (r.type === 'document' || r.type === 'presentation' || r.type === 'worksheet')).map(doc => {
+                            const embed = parseEmbedUrl(doc.url);
+                            return (
+                              <div key={doc.id} className="p-5 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col justify-between">
+                                <div>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-100 text-orange-800 uppercase">{doc.fileType || 'tài liệu'}</span>
+                                  <h4 className="font-bold text-slate-800 text-sm mt-1 mb-1">{doc.title}</h4>
+                                  <p className="text-xs text-slate-500 mb-3">{doc.description}</p>
+
+                                  {/* Canva / PPT embed */}
+                                  {embed.canEmbed && embed.embedUrl && (
+                                    <div className="aspect-video w-full rounded-lg overflow-hidden border border-slate-200 bg-black mb-3">
+                                      <iframe src={embed.embedUrl} title={doc.title} className="w-full h-full border-0" allowFullScreen />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="pt-3 border-t flex justify-between items-center text-xs">
+                                  <button onClick={() => setReportModalItem(doc)} className="text-slate-400 hover:text-rose-600">🚩 Báo lỗi</button>
+                                  {doc.url && (
+                                    <a href={doc.url} target="_blank" rel="noreferrer" className="px-3 py-1 bg-teal-600 hover:bg-teal-500 text-white rounded font-medium">
+                                      Mở tài liệu / Slide ↗
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* 2. REGULAR TABS (HOME, GRADE 10, 11, 12, EXPERIMENTS, VIDEOS, DOCUMENTS, TEACHER) */
+              <div>
+                {/* HOMEPAGE */}
+                {currentTab === 'home' && (
+                  <div className="space-y-12 pb-12">
+                    {/* Hero Banner with Global Search Bar (Section 3 & 12) */}
+                    <section className="bg-gradient-to-b from-[#0f2b5c] via-[#163a75] to-[#1e40af] text-white py-16 px-4 text-center relative overflow-hidden">
+                      <div className="max-w-4xl mx-auto space-y-4 relative z-10">
+                        <span className="px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 border border-teal-400/30 text-xs font-semibold">
+                          ✨ Chương trình Giáo dục phổ thông 2018
+                        </span>
+                        <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight">
+                          KHÔNG GIAN HỌC TẬP VẬT LÍ 10–11–12
+                        </h1>
+                        <p className="text-sm sm:text-base text-slate-200 max-w-2xl mx-auto font-light">
+                          Hệ thống bài học trung tâm: kiến thức trọng tâm, thí nghiệm ảo PhET, mô phỏng số học tương tác, bài giảng video và tài liệu học tập toàn diện.
+                        </p>
+
+                        {/* Global Search Bar (Section 3 & 12) */}
+                        <div className="max-w-2xl mx-auto pt-3">
+                          <div className="relative flex items-center shadow-2xl rounded-2xl overflow-hidden bg-white text-slate-800">
+                            <span className="pl-4 pr-2 text-slate-400 text-lg">🔍</span>
+                            <input
+                              type="text"
+                              value={globalSearch}
+                              onChange={e => setGlobalSearch(e.target.value)}
+                              placeholder="Tìm kiếm bài học, công thức, thí nghiệm, video... (hỗ trợ tiếng Việt không dấu)"
+                              className="w-full py-3.5 px-2 text-xs sm:text-sm focus:outline-none"
+                            />
+                            {globalSearch && (
+                              <button
+                                onClick={() => setGlobalSearch('')}
+                                className="px-3 text-slate-400 hover:text-slate-600 text-sm font-bold"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* Global Search Results Overlay (If user is searching) */}
+                    {searchResults && (
+                      <section className="max-w-7xl mx-auto px-4 sm:px-8">
+                        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+                          <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                            <h2 className="text-base font-bold text-physics-dark">
+                              Kết quả tìm kiếm cho: <span className="text-teal-600">"{globalSearch}"</span>
+                            </h2>
+                            <span className="text-xs text-slate-500">
+                              Tìm thấy {searchResults.lessons.length} bài học, {searchResults.resources.length} học liệu
+                            </span>
+                          </div>
+
+                          {/* Matching Lessons */}
+                          <div className="mb-6">
+                            <h3 className="font-bold text-xs uppercase text-slate-500 mb-2">Bài học phù hợp:</h3>
+                            {searchResults.lessons.length === 0 ? (
+                              <p className="text-xs text-slate-400 italic">Không tìm thấy bài học nào.</p>
+                            ) : (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {searchResults.lessons.map(les => (
+                                  <div
+                                    key={les.id}
+                                    onClick={() => openLesson(les)}
+                                    className="p-3 rounded-lg border border-slate-200 hover:border-teal-500 hover:bg-slate-50 cursor-pointer transition-colors"
+                                  >
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-physics-navy">
+                                        Lớp {les.grade}
+                                      </span>
+                                      <span className="text-xs font-semibold text-slate-800">{les.title}</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 truncate">{les.chapterName}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Matching Resources */}
+                          <div>
+                            <h3 className="font-bold text-xs uppercase text-slate-500 mb-2">Học liệu phù hợp:</h3>
+                            {searchResults.resources.length === 0 ? (
+                              <p className="text-xs text-slate-400 italic">Không tìm thấy học liệu nào.</p>
+                            ) : (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {searchResults.resources.map(res => (
+                                  <div
+                                    key={res.id}
+                                    className="p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors flex justify-between items-center"
+                                  >
+                                    <div>
+                                      <div className="flex items-center gap-1.5 mb-1">
+                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 uppercase">
+                                          {res.type.replace('_', ' ')}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400">Lớp {res.grade}</span>
+                                      </div>
+                                      <h4 className="text-xs font-semibold text-slate-800 mb-0.5 line-clamp-1">{res.title}</h4>
+                                      <p className="text-[11px] text-slate-500 line-clamp-1">{res.description}</p>
+                                    </div>
+                                    {res.type === 'experiment' || res.type === 'simulation' ? (
+                                      <button onClick={() => setActiveExperimentModal(res)} className="px-2.5 py-1 bg-physics-navy text-white text-[11px] rounded font-medium whitespace-nowrap ml-2">Thực hành 🔬</button>
+                                    ) : res.type.startsWith('video') ? (
+                                      <button onClick={() => setActiveVideoModal(res)} className="px-2.5 py-1 bg-red-600 text-white text-[11px] rounded font-medium whitespace-nowrap ml-2">Xem ▶</button>
+                                    ) : null}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 3 Large Grade Cards (Section 3) */}
+                    <section className="max-w-7xl mx-auto px-4 sm:px-8">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {[
+                          { g: 10, title: 'VẬT LÍ 10', desc: 'Động học, Động lực học Newton, Công - Năng lượng, Động lượng và Biến dạng của vật rắn.' },
+                          { g: 11, title: 'VẬT LÍ 11', desc: 'Dao động điều hòa, Sóng cơ, Điện trường, Dòng điện & Các định luật trong mạch.' },
+                          { g: 12, title: 'VẬT LÍ 12', desc: 'Vật lí nhiệt, Nhiệt hóa hơi, Mô hình khí lí tưởng, Từ trường và Vật lí hạt nhân.' }
+                        ].map(c => (
+                          <div
+                            key={c.g}
+                            onClick={() => handleSelectGrade(c.g)}
+                            className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-teal-500 hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="w-12 h-12 rounded-xl bg-blue-100 text-physics-navy font-bold flex items-center justify-center text-xl mb-3">
+                                {c.g}
+                              </div>
+                              <h3 className="text-xl font-bold text-physics-dark mb-2">{c.title}</h3>
+                              <p className="text-xs text-slate-500 leading-relaxed mb-4">{c.desc}</p>
+                              <div className="text-xs text-slate-600 font-medium space-y-1">
+                                <p>• {publicLessons.filter(l => l.grade === c.g).length} bài học trọng tâm</p>
+                                <p>• Mô phỏng tương tác số học & video thí nghiệm</p>
+                              </div>
+                            </div>
+                            <span className="text-xs font-bold text-teal-600 pt-4 mt-2 border-t">Vào học Vật lí {c.g} →</span>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    {/* Bài học mới cập nhật (Section 3) */}
+                    <section className="max-w-7xl mx-auto px-4 sm:px-8">
+                      <div className="flex justify-between items-center mb-4">
+                        <div>
+                          <h2 className="text-xl font-extrabold text-physics-dark">Bài học mới cập nhật</h2>
+                          <p className="text-xs text-slate-500">Nội dung bài học bám sát chương trình Giáo dục phổ thông 2018</p>
+                        </div>
+                        <button onClick={() => handleSelectGrade(10)} className="text-xs font-bold text-physics-navy hover:text-teal-600">
+                          Xem danh mục bài học →
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {publicLessons.slice(0, 6).map(les => (
+                          <div
+                            key={les.id}
+                            onClick={() => openLesson(les)}
+                            className="bg-white rounded-xl p-5 border border-slate-200 hover:border-teal-500 hover:shadow-md cursor-pointer transition-all flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-physics-navy">Lớp {les.grade}</span>
+                                {les.isSample && <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">Mẫu</span>}
+                              </div>
+                              <h3 className="font-bold text-slate-800 text-sm mb-1">{les.title}</h3>
+                              <p className="text-xs text-slate-400 mb-2">{les.chapterName}</p>
+                              <p className="text-xs text-slate-600 line-clamp-2">{les.objectives.knowledge[0]}</p>
+                            </div>
+                            <div className="pt-3 mt-3 border-t text-xs flex justify-between items-center text-slate-500">
+                              <span>{les.authorName}</span>
+                              <span className="font-bold text-teal-600">Học bài →</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    {/* Thí nghiệm & Mô phỏng nổi bật (Section 3) */}
+                    <section className="max-w-7xl mx-auto px-4 sm:px-8">
+                      <div className="flex justify-between items-center mb-4">
+                        <div>
+                          <h2 className="text-xl font-extrabold text-physics-dark">Thí nghiệm & Mô phỏng nổi bật</h2>
+                          <p className="text-xs text-slate-500">Trực quan hóa các định luật và khảo sát số liệu thực nghiệm</p>
+                        </div>
+                        <button onClick={() => setCurrentTab('experiments')} className="text-xs font-bold text-physics-navy hover:text-teal-600">
+                          Kho thí nghiệm mở →
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {publicResources.filter(r => r.type === 'experiment' || r.type === 'simulation').slice(0, 3).map(exp => (
+                          <div key={exp.id} className="bg-white p-5 rounded-xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between">
+                            <div>
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-100 text-teal-800 uppercase">{exp.type}</span>
+                                <span className="text-xs text-physics-navy font-bold">Lớp {exp.grade}</span>
+                              </div>
+                              <h3 className="font-bold text-slate-800 text-sm mb-1">{exp.title}</h3>
+                              <p className="text-xs text-slate-500 line-clamp-2 mb-3">{exp.description}</p>
+                            </div>
+                            <div className="pt-3 border-t flex justify-between items-center text-xs">
+                              <span className="text-slate-400">{exp.author}</span>
+                              <button onClick={() => setActiveExperimentModal(exp)} className="px-3 py-1 bg-physics-navy text-white rounded font-bold">Thực hành 🔬</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    {/* Video bài học & Video thí nghiệm mới (Section 3) */}
+                    <section className="max-w-7xl mx-auto px-4 sm:px-8">
+                      <div className="flex justify-between items-center mb-4">
+                        <div>
+                          <h2 className="text-xl font-extrabold text-physics-dark">Video bài học & Video thí nghiệm mới</h2>
+                          <p className="text-xs text-slate-500">Xem trực quan các bước thực hiện thí nghiệm và bài giảng chi tiết</p>
+                        </div>
+                        <button onClick={() => setCurrentTab('videos')} className="text-xs font-bold text-physics-navy hover:text-teal-600">
+                          Xem thư viện video →
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {publicResources.filter(r => r.type === 'video_experiment' || r.type === 'video_lesson').slice(0, 3).map(vid => (
+                          <div key={vid.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-all flex flex-col justify-between">
+                            <div onClick={() => setActiveVideoModal(vid)} className="aspect-video bg-slate-900 cursor-pointer flex items-center justify-center relative">
+                              <span className="text-3xl text-red-600">▶</span>
+                              {vid.duration && <span className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-white text-[10px] rounded font-mono">{vid.duration}</span>}
+                            </div>
+                            <div className="p-4">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">{vid.type === 'video_experiment' ? 'Video thí nghiệm' : 'Video bài học'}</span>
+                              <h3 className="font-bold text-slate-800 text-sm mt-1 mb-1">{vid.title}</h3>
+                              <p className="text-xs text-slate-500 line-clamp-2">{vid.description}</p>
+                            </div>
+                            <div className="p-3 bg-slate-50 border-t flex justify-between items-center text-xs">
+                              <span className="text-slate-400">{vid.author}</span>
+                              <button onClick={() => setActiveVideoModal(vid)} className="px-3 py-1 bg-physics-navy text-white rounded font-medium">Xem video ▶</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    {/* Hướng dẫn ngắn cho học sinh và giáo viên (Section 3) */}
+                    <section className="max-w-7xl mx-auto px-4 sm:px-8">
+                      <div className="bg-gradient-to-r from-blue-50 to-teal-50 rounded-2xl p-6 sm:p-8 border border-blue-200 shadow-sm">
+                        <h2 className="text-lg font-bold text-physics-dark mb-4 flex items-center gap-2">
+                          <span>📖</span> Hướng dẫn ngắn cho Học sinh và Giáo viên
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs sm:text-sm text-slate-700">
+                          <div className="space-y-2">
+                            <h3 className="font-bold text-physics-navy text-sm">🎓 Dành cho Học sinh:</h3>
+                            <ul className="list-disc pl-5 space-y-1 text-slate-600">
+                              <li>Chọn khối lớp (10, 11 hoặc 12) trên thanh điều hướng để mở danh mục bài học.</li>
+                              <li>Đọc kĩ các thẻ: Mục tiêu, Kiến thức trọng tâm, Công thức KaTeX và Lỗi sai thường gặp.</li>
+                              <li>Tương tác trực tiếp với các mô phỏng thí nghiệm để tự rút ra quy luật Vật lí.</li>
+                              <li>Tự làm bài tập luyện tập và mở hướng dẫn giải chi tiết để đối chiếu kết quả.</li>
+                            </ul>
+                          </div>
+                          <div className="space-y-2">
+                            <h3 className="font-bold text-teal-800 text-sm">👨‍🏫 Dành cho Giáo viên:</h3>
+                            <ul className="list-disc pl-5 space-y-1 text-slate-600">
+                              <li>Bấm vào nút <strong>"Khu vực giáo viên"</strong> ở góc phải để mở bảng điều khiển quản trị.</li>
+                              <li>Tạo học liệu mới bằng 3 cách: Tải tệp lên, Dán liên kết (YouTube, PhET, Canva) hoặc Soạn nội dung.</li>
+                              <li>Một học liệu có thể liên kết đồng thời với nhiều bài học khác nhau.</li>
+                              <li>Bật <strong>"Chế độ trình chiếu (Esc)"</strong> khi giảng dạy trực tiếp trên lớp với màn hình tương tác.</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                )}
+
+                {/* GRADE PAGES (10, 11, 12) (Section 4) */}
+                {['grade10', 'grade11', 'grade12'].includes(currentTab) && (() => {
+                  const g = parseInt(currentTab.replace('grade', ''));
+                  const gradeChapters = chapters.filter(c => c.grade === g);
+                  const regularChapters = gradeChapters.filter(c => !c.isSpecialTopic);
+                  const specialTopicChapters = gradeChapters.filter(c => c.isSpecialTopic);
+
+                  const filteredGradeLessons = publicLessons.filter(l => {
+                    if (l.grade !== g) return false;
+                    if (selectedChapterId !== 'all' && l.chapterId !== selectedChapterId) return false;
+                    if (selectedTextbook !== 'all' && l.textbookId !== selectedTextbook) return false;
+                    if (selectedResType !== 'all') {
+                      const hasRes = resources.some(r =>
+                        (l.linkedResourceIds.includes(r.id) || r.linkedLessonIds.includes(l.id)) &&
+                        (r.type === selectedResType || (selectedResType === 'video' && (r.type === 'video_lesson' || r.type === 'video_experiment')))
+                      );
+                      if (!hasRes) return false;
+                    }
+                    if (gradeSearch.trim()) {
+                      const matchT = matchesSearch(l.title, gradeSearch);
+                      const matchC = matchesSearch(l.chapterName, gradeSearch);
+                      const matchK = l.keyKnowledge && l.keyKnowledge.concepts && l.keyKnowledge.concepts.some(c => matchesSearch(c, gradeSearch));
+                      if (!matchT && !matchC && !matchK) return false;
+                    }
+                    return true;
+                  });
+
+                  return (
+                    <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
+                      {/* Grade Banner */}
+                      <div className="bg-gradient-to-r from-physics-dark to-physics-navy rounded-2xl p-6 sm:p-8 text-white mb-6 shadow-md relative overflow-hidden">
+                        <div className="relative z-10 max-w-2xl">
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-teal-500/20 text-teal-300 border border-teal-400/30">
+                            Chương trình GDPT 2018
+                          </span>
+                          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mt-2 mb-2">
+                            Không gian học tập Vật lí {g}
+                          </h1>
+                          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                            {g === 10 && 'Khám phá Cơ học: Động học, Động lực học Newton, Năng lượng, Động lượng và Biến dạng của vật rắn.'}
+                            {g === 11 && 'Khám phá Dao động cơ, Sóng cơ & Sóng âm, Điện trường và Các định luật về Dòng điện.'}
+                            {g === 12 && 'Khám phá Vật lí nhiệt, Khí lí tưởng, Từ trường, Cảm ứng điện từ và Vật lí hạt nhân.'}
+                          </p>
+                        </div>
+                        <div className="absolute right-4 -bottom-6 text-8xl opacity-10 select-none font-black">
+                          {g}
+                        </div>
+                      </div>
+
+                      {/* Filter Bar: Search, Textbook, Resource type (Section 4) */}
+                      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder={`Tìm bài học, công thức lớp ${g}...`}
+                            value={gradeSearch}
+                            onChange={e => setGradeSearch(e.target.value)}
+                            className="w-full text-xs sm:text-sm border border-slate-300 rounded-lg pl-8 pr-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                          />
+                          <span className="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+                        </div>
+                        <div>
+                          <select
+                            value={selectedTextbook}
+                            onChange={e => setSelectedTextbook(e.target.value)}
+                            className="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-3 py-2 text-slate-700 font-medium focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                          >
+                            <option value="all">Tất cả bộ sách</option>
+                            {textbooks.map(tb => (
+                              <option key={tb.id} value={tb.id}>Bộ sách: {tb.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <select
+                            value={selectedResType}
+                            onChange={e => setSelectedResType(e.target.value)}
+                            className="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-3 py-2 text-slate-700 font-medium focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                          >
+                            <option value="all">Tất cả loại học liệu</option>
+                            <option value="experiment">Thí nghiệm thực</option>
+                            <option value="simulation">Mô phỏng tương tác</option>
+                            <option value="video">Video bài học & thí nghiệm</option>
+                            <option value="document">Tài liệu & Phiếu học tập</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Grade Content Layout: Left Sidebar for Chapters, Right for Lessons */}
+                      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        {/* Left Sidebar: Chapters & Special Topics (Section 4) */}
+                        <div className="lg:col-span-1 space-y-4">
+                          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <h3 className="font-bold text-xs uppercase text-slate-700 mb-3 flex items-center justify-between">
+                              <span>Chủ đề & Chương ({regularChapters.length})</span>
+                            </h3>
+                            <div className="space-y-1 text-xs">
+                              <button
+                                onClick={() => setSelectedChapterId('all')}
+                                className={`w-full text-left p-2 rounded transition-colors font-medium ${
+                                  selectedChapterId === 'all' ? 'bg-physics-navy text-white font-bold' : 'text-slate-700 hover:bg-slate-100'
+                                }`}
+                              >
+                                Tất cả bài học ({publicLessons.filter(l => l.grade === g).length})
+                              </button>
+                              {regularChapters.map(ch => {
+                                const count = publicLessons.filter(l => l.grade === g && l.chapterId === ch.id).length;
+                                return (
+                                  <button
+                                    key={ch.id}
+                                    onClick={() => setSelectedChapterId(ch.id)}
+                                    className={`w-full text-left p-2 rounded transition-colors flex justify-between items-center ${
+                                      selectedChapterId === ch.id ? 'bg-physics-navy text-white font-bold' : 'text-slate-700 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <span className="truncate">{ch.name}</span>
+                                    {count > 0 && (
+                                      <span className={`text-[10px] px-1.5 py-0.2 rounded ${selectedChapterId === ch.id ? 'bg-blue-800 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                                        {count}
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Mục “Chuyên đề học tập” riêng (Section 4) */}
+                          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <h3 className="font-bold text-xs uppercase text-teal-800 mb-2">⭐ Chuyên đề học tập {g}</h3>
+                            <div className="space-y-1 text-xs">
+                              {specialTopicChapters.map(sp => (
+                                <button
+                                  key={sp.id}
+                                  onClick={() => setSelectedChapterId(sp.id)}
+                                  className={`w-full text-left p-2 rounded transition-colors ${
+                                    selectedChapterId === sp.id ? 'bg-teal-700 text-white font-bold' : 'text-slate-700 hover:bg-teal-50'
+                                  }`}
+                                >
+                                  {sp.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Ghi chú mục lục mẫu (Section 1 & 4) */}
+                          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed">
+                            📌 <strong>Lưu ý:</strong> Khung chủ đề khởi tạo là danh mục mẫu để tổ chức học liệu số. Giáo viên có thể thêm bộ sách khác và chỉnh sửa tên, thứ tự chương, bài trong Khu vực giáo viên.
+                          </div>
+                        </div>
+
+                        {/* Right Area: Lessons List */}
+                        <div className="lg:col-span-3">
+                          {filteredGradeLessons.length === 0 ? (
+                            <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500">
+                              <span className="text-4xl block mb-2">🔍</span>
+                              <p className="font-bold text-sm">Không tìm thấy bài học nào phù hợp với bộ lọc.</p>
+                              <p className="text-xs mt-1 text-slate-400">Vui lòng thử chọn chủ đề khác hoặc xóa từ khóa tìm kiếm.</p>
+                              <button
+                                onClick={() => { setSelectedChapterId('all'); setSelectedTextbook('all'); setGradeSearch(''); setSelectedResType('all'); }}
+                                className="mt-4 px-4 py-1.5 bg-physics-navy text-white rounded text-xs font-semibold"
+                              >
+                                Đặt lại bộ lọc
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {filteredGradeLessons.map(les => (
+                                <div
+                                  key={les.id}
+                                  onClick={() => openLesson(les)}
+                                  className="bg-white p-5 rounded-xl border border-slate-200 hover:border-teal-500 hover:shadow-md cursor-pointer transition-all flex flex-col justify-between"
+                                >
+                                  <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-physics-navy">{les.chapterName}</span>
+                                      {les.isSample && (
+                                        <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                          Mẫu rà soát
+                                        </span>
+                                      )}
+                                    </div>
+                                    <h3 className="font-bold text-slate-800 text-base mb-1">{les.title}</h3>
+                                    <p className="text-xs text-slate-500 line-clamp-2 mb-3">{les.objectives.knowledge[0]}</p>
+                                  </div>
+                                  <div className="pt-3 border-t flex justify-between items-center text-xs">
+                                    <span className="text-teal-700 font-semibold">{les.linkedResourceIds.length} học liệu liên kết</span>
+                                    <span className="px-3 py-1 bg-physics-navy text-white rounded font-bold">Vào bài →</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* EXPERIMENTS PAGE */}
+                {currentTab === 'experiments' && (
+                  <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
+                    <h1 className="text-2xl font-extrabold text-physics-dark mb-1">Kho Thí nghiệm & Mô phỏng Vật lí</h1>
+                    <p className="text-xs text-slate-500 mb-6">Thí nghiệm thực hành chuẩn hóa, mô phỏng ảo PhET và HTML5 Canvas tương tác.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {publicResources.filter(r => r.type === 'experiment' || r.type === 'simulation').map(exp => (
+                        <div key={exp.id} className="bg-white p-5 rounded-xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between">
+                          <div>
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-100 text-teal-800 uppercase">{exp.type}</span>
+                              <span className="text-xs text-physics-navy font-bold">Lớp {exp.grade}</span>
+                            </div>
+                            <h3 className="font-bold text-slate-800 text-sm mb-1">{exp.title}</h3>
+                            <p className="text-xs text-slate-500 line-clamp-2 mb-3">{exp.description}</p>
+                          </div>
+                          <div className="pt-3 border-t flex justify-between items-center text-xs">
+                            <span className="text-slate-400">{exp.author}</span>
+                            <button onClick={() => setActiveExperimentModal(exp)} className="px-3 py-1 bg-physics-navy text-white rounded font-bold">Mở thực hành 🔬</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* VIDEOS PAGE */}
+                {currentTab === 'videos' && (
+                  <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
+                    <h1 className="text-2xl font-extrabold text-physics-dark mb-1">Thư viện Video Vật lí THPT</h1>
+                    <p className="text-xs text-slate-500 mb-6">Video thí nghiệm thực tế và video bài giảng chi tiết.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {publicResources.filter(r => r.type === 'video_experiment' || r.type === 'video_lesson').map(vid => (
+                        <div key={vid.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-all flex flex-col justify-between">
+                          <div onClick={() => setActiveVideoModal(vid)} className="aspect-video bg-slate-900 cursor-pointer flex items-center justify-center relative">
+                            <span className="text-3xl text-red-600">▶</span>
+                            {vid.duration && <span className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-white text-[10px] rounded font-mono">{vid.duration}</span>}
+                          </div>
+                          <div className="p-4">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">{vid.type === 'video_experiment' ? 'Video thí nghiệm' : 'Video bài học'}</span>
+                            <h3 className="font-bold text-slate-800 text-sm mt-1 mb-1">{vid.title}</h3>
+                            <p className="text-xs text-slate-500 line-clamp-2">{vid.description}</p>
+                          </div>
+                          <div className="p-3 bg-slate-50 border-t flex justify-between items-center text-xs">
+                            <span className="text-slate-400">{vid.author}</span>
+                            <button onClick={() => setActiveVideoModal(vid)} className="px-3 py-1 bg-physics-navy text-white rounded font-medium">Xem video ▶</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* DOCUMENTS PAGE */}
+                {currentTab === 'documents' && (
+                  <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
+                    <h1 className="text-2xl font-extrabold text-physics-dark mb-1">Thư viện Tài liệu & Slide Canva/PPTX</h1>
+                    <p className="text-xs text-slate-500 mb-6">Hệ thống phiếu bài tập, bài trình chiếu và bảng tính thực hành.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {publicResources.filter(r => r.type === 'document' || r.type === 'presentation' || r.type === 'worksheet').map(doc => (
+                        <div key={doc.id} className="bg-white p-5 rounded-xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between">
+                          <div>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-100 text-orange-800 uppercase">{doc.fileType || 'tài liệu'}</span>
+                            <h3 className="font-bold text-slate-800 text-sm mt-1 mb-1">{doc.title}</h3>
+                            <p className="text-xs text-slate-500 line-clamp-2 mb-3">{doc.description}</p>
+                          </div>
+                          <div className="pt-3 border-t flex justify-between items-center text-xs">
+                            <span className="text-slate-400">Lớp {doc.grade}</span>
+                            {doc.url ? (
+                              <a href={doc.url} target="_blank" rel="noreferrer" className="px-3 py-1 bg-physics-navy text-white rounded font-medium">Mở tài liệu ↗</a>
+                            ) : (
+                              <span className="text-slate-400">Chưa có liên kết</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* TEACHER PORTAL & MANAGEMENT */}
+                {currentTab === 'teacher' && (
+                  <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
+                    {userRole === 'student' ? (
+                      <div className="bg-white p-8 rounded-2xl border text-center max-w-lg mx-auto">
+                        <span className="text-4xl">🔒</span>
+                        <h2 className="text-lg font-bold mt-2">Dành cho Giáo viên & Quản trị</h2>
+                        <p className="text-xs text-slate-500 mt-1 mb-4">Vui lòng dùng thanh đổi vai trò trên đầu trang và chọn "Giáo viên" để trải nghiệm.</p>
+                        <button onClick={() => setUserRole('teacher')} className="px-4 py-2 bg-teal-600 text-white rounded-lg text-xs font-bold">
+                          Chuyển sang quyền Giáo viên ngay
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b">
+                          <div>
+                            <span className="text-xs font-bold text-teal-600 uppercase">{userRole === 'admin' ? 'Quản trị viên' : 'Giáo viên'}</span>
+                            <h1 className="text-2xl font-bold text-slate-900">Bảng Quản trị Học liệu & Bài giảng</h1>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setEditingResource({
+                                id: `res_${Date.now()}`,
+                                title: '',
+                                description: '',
+                                type: 'experiment',
+                                grade: 10,
+                                linkedLessonIds: [],
+                                author: authorLine,
+                                source: 'Tổ Vật lí THPT',
+                                status: 'draft',
+                                tags: []
+                              });
+                              setCreateMode('link');
+                              setUploadProgress(null);
+                            }}
+                            className="px-4 py-2 bg-teal-600 text-white rounded-lg text-xs font-bold hover:bg-teal-500"
+                          >
+                            ➕ Thêm học liệu mới
+                          </button>
+                        </div>
+
+                        {/* Teacher Subtabs */}
+                        <div className="flex border-b text-xs font-bold space-x-4 mb-6">
+                          <button onClick={() => setTeacherTab('resources')} className={`pb-2 border-b-2 ${teacherTab === 'resources' ? 'border-physics-navy text-physics-navy' : 'border-transparent text-slate-500'}`}>
+                            Tất cả học liệu ({resources.length})
+                          </button>
+                          <button onClick={() => setTeacherTab('lessons')} className={`pb-2 border-b-2 ${teacherTab === 'lessons' ? 'border-physics-navy text-physics-navy' : 'border-transparent text-slate-500'}`}>
+                            Quản lí bài học ({lessons.length})
+                          </button>
+                          <button onClick={() => setTeacherTab('categories')} className={`pb-2 border-b-2 ${teacherTab === 'categories' ? 'border-physics-navy text-physics-navy' : 'border-transparent text-slate-500'}`}>
+                            Danh mục & Bộ sách ({chapters.length} chương / {textbooks.length} sách)
+                          </button>
+                          <button onClick={() => setTeacherTab('settings')} className={`pb-2 border-b-2 ${teacherTab === 'settings' ? 'border-physics-navy text-physics-navy' : 'border-transparent text-slate-500'}`}>
+                            Cài đặt & Dòng tác giả ⚙
+                          </button>
+                        </div>
+
+                        {teacherTab === 'resources' && (
+                          <div className="bg-white rounded-xl border overflow-x-auto">
+                            <table className="w-full text-xs text-left">
+                              <thead className="bg-slate-50 border-b font-bold text-slate-700">
+                                <tr>
+                                  <th className="p-3">Tiêu đề học liệu</th>
+                                  <th className="p-3">Loại</th>
+                                  <th className="p-3">Khối</th>
+                                  <th className="p-3">Bài liên kết</th>
+                                  <th className="p-3">Trạng thái</th>
+                                  <th className="p-3 text-right">Thao tác</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {resources.map(r => (
+                                  <tr key={r.id} className="hover:bg-slate-50">
+                                    <td className="p-3 font-semibold text-slate-800 max-w-xs truncate">{r.title}</td>
+                                    <td className="p-3 uppercase">{r.type}</td>
+                                    <td className="p-3">Lớp {r.grade}</td>
+                                    <td className="p-3 font-bold text-teal-700">{r.linkedLessonIds.length} bài</td>
+                                    <td className="p-3">
+                                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${r.status === 'published' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                                        {r.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'}
+                                      </span>
+                                    </td>
+                                    <td className="p-3 text-right space-x-1">
+                                      <button onClick={() => { setEditingResource({ ...r }); setCreateMode('link'); }} className="px-2.5 py-1 bg-slate-100 rounded font-semibold">Sửa</button>
+                                      {r.status !== 'published' && (
+                                        <button onClick={() => handleSaveResource(r, 'published')} className="px-2.5 py-1 bg-emerald-600 text-white rounded font-semibold">Xuất bản</button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
+                        {teacherTab === 'lessons' && (
+                          <div className="bg-white rounded-xl border overflow-x-auto">
+                            <table className="w-full text-xs text-left">
+                              <thead className="bg-slate-50 border-b font-bold text-slate-700">
+                                <tr>
+                                  <th className="p-3">Khối</th>
+                                  <th className="p-3">Chủ đề</th>
+                                  <th className="p-3">Tên bài học</th>
+                                  <th className="p-3">Học liệu</th>
+                                  <th className="p-3 text-right">Xem</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {lessons.map(les => (
+                                  <tr key={les.id} className="hover:bg-slate-50">
+                                    <td className="p-3 font-bold text-physics-navy">Lớp {les.grade}</td>
+                                    <td className="p-3 text-slate-600">{les.chapterName}</td>
+                                    <td className="p-3 font-bold text-slate-800">{les.title}</td>
+                                    <td className="p-3 text-teal-700 font-bold">{les.linkedResourceIds.length} học liệu</td>
+                                    <td className="p-3 text-right">
+                                      <button onClick={() => openLesson(les)} className="px-3 py-1 bg-physics-navy text-white rounded font-medium">Mở bài →</button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
+                        {teacherTab === 'categories' && (
+                          <div className="space-y-6">
+                            {/* Textbooks Management (Requirement 1) */}
+                            <div className="bg-white p-5 rounded-xl border">
+                              <h3 className="font-bold text-sm text-physics-navy mb-3">📚 Quản lí Các Bộ Sách Giáo Khoa (Mặc định: Kết nối tri thức với cuộc sống)</h3>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                                {textbooks.map(tb => (
+                                  <div key={tb.id} className="p-3 bg-slate-50 rounded-lg border flex justify-between items-center text-xs">
+                                    <div>
+                                      <span className="font-bold text-slate-800">{tb.name}</span>
+                                      <p className="text-[11px] text-slate-500">{tb.publisher || 'Nhà xuất bản'}</p>
+                                    </div>
+                                    {tb.isDefault && (
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                                        Mặc định
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="flex gap-2 text-xs max-w-md">
+                                <input
+                                  type="text"
+                                  placeholder="Thêm tên bộ sách mới (VD: Cùng khám phá)..."
+                                  value={newTextbookName}
+                                  onChange={e => setNewTextbookName(e.target.value)}
+                                  className="flex-1 border p-2 rounded"
+                                />
+                                <button
+                                  onClick={() => {
+                                    if (!newTextbookName.trim()) return;
+                                    const newTb = {
+                                      id: `tb_${Date.now()}`,
+                                      name: newTextbookName.trim(),
+                                      publisher: 'Tự chọn',
+                                      isDefault: false
+                                    };
+                                    setTextbooks(prev => [...prev, newTb]);
+                                    setNewTextbookName('');
+                                    alert(`Đã thêm bộ sách "${newTb.name}"!`);
+                                  }}
+                                  className="px-3 py-2 bg-teal-600 text-white rounded font-bold"
+                                >
+                                  Thêm bộ sách
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Chapters Management (Requirement 1 & 4) */}
+                            <div className="bg-white p-5 rounded-xl border">
+                              <h3 className="font-bold text-sm text-physics-navy mb-3">📑 Danh mục Chủ đề & Chương (Khối 10, 11, 12)</h3>
+                              <p className="text-xs text-slate-500 mb-4">Giáo viên có thể thêm, chỉnh sửa danh mục để phù hợp với phân phối chương trình của nhà trường.</p>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                {[10, 11, 12].map(g => (
+                                  <div key={g} className="border rounded-lg p-3 bg-slate-50">
+                                    <h4 className="font-bold text-xs text-physics-navy mb-2 pb-1 border-b">Vật lí {g} ({chapters.filter(c => c.grade === g).length} chủ đề)</h4>
+                                    <ul className="space-y-1 text-xs">
+                                      {chapters.filter(c => c.grade === g).map((ch, idx) => (
+                                        <li key={ch.id} className="p-1.5 bg-white rounded border flex justify-between items-center text-[11px]">
+                                          <span className="truncate">{idx + 1}. {ch.name}</span>
+                                          {ch.isSpecialTopic && <span className="text-[9px] font-bold text-teal-700 bg-teal-50 px-1 rounded">Chuyên đề</span>}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="flex flex-wrap gap-2 text-xs max-w-lg items-center">
+                                <select
+                                  value={newChapterGrade}
+                                  onChange={e => setNewChapterGrade(parseInt(e.target.value))}
+                                  className="border p-2 rounded"
+                                >
+                                  <option value={10}>Lớp 10</option>
+                                  <option value={11}>Lớp 11</option>
+                                  <option value={12}>Lớp 12</option>
+                                </select>
+                                <input
+                                  type="text"
+                                  placeholder="Tên chủ đề / chương mới..."
+                                  value={newChapterName}
+                                  onChange={e => setNewChapterName(e.target.value)}
+                                  className="flex-1 border p-2 rounded min-w-[200px]"
+                                />
+                                <button
+                                  onClick={() => {
+                                    if (!newChapterName.trim()) return;
+                                    const newCh = {
+                                      id: `ch_${Date.now()}`,
+                                      grade: newChapterGrade,
+                                      name: newChapterName.trim(),
+                                      textbookId: 'ket_noi_tri_thuc',
+                                      order: chapters.filter(c => c.grade === newChapterGrade).length + 1,
+                                      isSpecialTopic: false
+                                    };
+                                    setChapters(prev => [...prev, newCh]);
+                                    setNewChapterName('');
+                                    alert(`Đã thêm chủ đề "${newCh.name}" vào Lớp ${newChapterGrade}!`);
+                                  }}
+                                  className="px-3 py-2 bg-physics-navy text-white rounded font-bold"
+                                >
+                                  Thêm chủ đề
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {teacherTab === 'settings' && (
+                          <div className="bg-white p-6 rounded-xl border max-w-xl space-y-4 text-xs">
+                            <h3 className="font-bold text-sm text-slate-800">Cài đặt Website & Dòng Tác giả Chân trang</h3>
+                            <div>
+                              <label className="block font-semibold mb-1">Tên website:</label>
+                              <input type="text" value={siteTitle} onChange={e => setSiteTitle(e.target.value)} className="w-full border p-2 rounded" />
+                            </div>
+                            <div>
+                              <label className="block font-semibold mb-1">Dòng tác giả chân trang (Footer):</label>
+                              <input type="text" value={authorLine} onChange={e => setAuthorLine(e.target.value)} className="w-full border p-2 rounded" />
+                              <p className="text-[11px] text-slate-400 mt-1">Mặc định: "Ths: Lê Long - QT"</p>
+                            </div>
+                            <button onClick={() => alert('Đã lưu thay đổi cài đặt!')} className="px-4 py-2 bg-physics-navy text-white rounded font-bold">
+                              Lưu cài đặt
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+
+          {/* FOOTER (Requirement 2) */}
+          <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 mt-12 py-8 px-4 sm:px-8">
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between text-xs gap-3">
+              <div>
+                <span className="font-bold text-white text-sm block">{siteTitle}</span>
+                <span className="text-slate-400">Không gian học tập và chia sẻ học liệu môn Vật lí THPT.</span>
+              </div>
+              {/* Dòng tác giả nhỏ: "Ths: Lê Long - QT" */}
+              <div className="bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700 flex items-center gap-1.5 text-slate-200 font-mono text-[11px]">
+                <span className="text-teal-400">Tác giả:</span>
+                <strong className="text-white">{authorLine}</strong>
+              </div>
+            </div>
+          </footer>
+
+          {/* PRESENTATION MODE OVERLAY (Requirement 5) */}
+          {showPresentation && activeLesson && (
+            <div className="fixed inset-0 z-50 bg-slate-950 text-white p-6 overflow-y-auto flex flex-col justify-between">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                <div>
+                  <span className="px-2 py-0.5 bg-teal-600 rounded text-xs font-bold">Vật lí {activeLesson.grade}</span>
+                  <h1 className="text-2xl font-bold mt-1">{activeLesson.title}</h1>
+                </div>
+                <button onClick={() => setShowPresentation(false)} className="px-4 py-2 bg-rose-600 rounded-lg text-sm font-bold shadow">
+                  Thoát trình chiếu (Esc) ✕
+                </button>
+              </div>
+
+              <div className="max-w-4xl mx-auto w-full py-8 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {activeLesson.keyKnowledge.formulas.map((f, i) => (
+                    <div key={i} className="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+                      <h3 className="text-xs font-bold text-slate-400 uppercase mb-2">{f.name}</h3>
+                      <div className="bg-slate-950 p-4 rounded text-center my-2">
+                        <MathFormula latex={f.latex} displayMode={true} className="text-2xl text-teal-300" />
+                      </div>
+                      <p className="text-xs text-slate-400"><strong>Ý nghĩa:</strong> {f.explanation}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                  <h3 className="font-bold text-teal-300 text-sm mb-2">Thực hành mô phỏng trên lớp:</h3>
+                  {activeLesson.id === 'lesson_10_1' && <InteractiveSimulator type="motion10" />}
+                  {activeLesson.id === 'lesson_10_2' && <InteractiveSimulator type="newton10" />}
+                  {activeLesson.id === 'lesson_11_1' && <InteractiveSimulator type="oscillator11" />}
+                  {activeLesson.id === 'lesson_11_2' && <InteractiveSimulator type="ohm11" />}
+                  {activeLesson.id === 'lesson_12_1' && <InteractiveSimulator type="heat12" />}
+                  {activeLesson.id === 'lesson_12_2' && <InteractiveSimulator type="gas12" />}
+                </div>
+              </div>
+
+              <div className="text-center text-xs text-slate-500 pt-3 border-t border-slate-900">
+                Bấm phím Esc hoặc nút Thoát ở góc trên để trở về
+              </div>
+            </div>
+          )}
+
+          {/* EXPERIMENT DETAIL MODAL */}
+          {activeExperimentModal && (
+            <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-start pb-3 border-b mb-4">
+                  <div>
+                    <span className="text-xs font-bold text-teal-600 uppercase">Thí nghiệm Vật lí {activeExperimentModal.grade}</span>
+                    <h2 className="text-xl font-bold">{activeExperimentModal.title}</h2>
+                  </div>
+                  <button onClick={() => setActiveExperimentModal(null)} className="text-2xl font-bold text-slate-400">✕</button>
+                </div>
+                <div className="space-y-4 text-xs">
+                  {activeExperimentModal.embedType === 'custom_sim' && (
+                    <div>
+                      {activeExperimentModal.id === 'res_sim_11_1' && <InteractiveSimulator type="oscillator11" />}
+                      {activeExperimentModal.id === 'res_sim_11_2' && <InteractiveSimulator type="ohm11" />}
+                      {activeExperimentModal.id === 'res_sim_12_1' && <InteractiveSimulator type="heat12" />}
+                      {activeExperimentModal.id === 'res_sim_12_2' && <InteractiveSimulator type="gas12" />}
+                    </div>
+                  )}
+                  {activeExperimentModal.embedType === 'phet' && activeExperimentModal.url && (
+                    <div className="aspect-video w-full border rounded overflow-hidden">
+                      <iframe src={activeExperimentModal.url} title={activeExperimentModal.title} className="w-full h-full border-0" allowFullScreen />
+                    </div>
+                  )}
+                  {activeExperimentModal.experimentData && (
+                    <div className="space-y-3">
+                      <p><strong>Mục đích:</strong> {activeExperimentModal.experimentData.purpose}</p>
+                      <p><strong>Cơ sở lí thuyết:</strong> {activeExperimentModal.experimentData.theory}</p>
+                      {activeExperimentModal.experimentData.equipment && (
+                        <div>
+                          <strong>Dụng cụ:</strong>
+                          <ul className="list-disc pl-5 mt-1">{activeExperimentModal.experimentData.equipment.map((e, i)=><li key={i}>{e}</li>)}</ul>
+                        </div>
+                      )}
+                      {activeExperimentModal.experimentData.sampleDataTable && (
+                        <div>
+                          <strong>Bảng số liệu mẫu:</strong>
+                          <div className="overflow-x-auto border rounded mt-1">
+                            <table className="w-full text-[11px] text-left">
+                              <thead className="bg-slate-100 font-bold">
+                                <tr>{activeExperimentModal.experimentData.sampleDataTable.headers.map((h, i)=><th key={i} className="p-2">{h}</th>)}</tr>
+                              </thead>
+                              <tbody>
+                                {activeExperimentModal.experimentData.sampleDataTable.rows.map((r, i)=>(
+                                  <tr key={i} className="border-t">{r.map((c, j)=><td key={j} className="p-2">{c}</td>)}</tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="pt-4 mt-4 border-t flex justify-end">
+                  <button onClick={() => setActiveExperimentModal(null)} className="px-4 py-2 bg-slate-800 text-white rounded font-medium text-xs">Đóng</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIDEO MODAL PLAYER */}
+          {activeVideoModal && (
+            <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-3xl w-full p-6">
+                <div className="flex justify-between items-start pb-2 border-b mb-4">
+                  <h3 className="font-bold text-base">{activeVideoModal.title}</h3>
+                  <button onClick={() => setActiveVideoModal(null)} className="text-xl font-bold text-slate-400">✕</button>
+                </div>
+                {(() => {
+                  const embed = parseEmbedUrl(activeVideoModal.url);
+                  return embed.canEmbed && embed.embedUrl ? (
+                    <div className="aspect-video w-full rounded-lg overflow-hidden bg-black mb-3">
+                      <iframe src={embed.embedUrl} title={activeVideoModal.title} className="w-full h-full border-0" allowFullScreen />
+                    </div>
+                  ) : (
+                    <div className="aspect-video w-full rounded-lg bg-slate-800 flex items-center justify-center text-white text-xs mb-3">
+                      <a href={activeVideoModal.url} target="_blank" rel="noreferrer" className="px-4 py-2 bg-teal-600 rounded font-bold">Mở video gốc ↗</a>
+                    </div>
+                  );
+                })()}
+                <p className="text-xs text-slate-600">{activeVideoModal.description}</p>
+                <div className="pt-3 mt-3 border-t flex justify-end">
+                  <button onClick={() => setActiveVideoModal(null)} className="px-4 py-1.5 bg-slate-800 text-white rounded text-xs">Đóng</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* EDIT/CREATE RESOURCE MODAL IN TEACHER PORTAL */}
+          {editingResource && (
+            <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center pb-3 border-b mb-4">
+                  <h3 className="font-bold text-base text-slate-900">{editingResource.title ? 'Sửa học liệu' : 'Thêm học liệu mới'}</h3>
+                  <button onClick={() => setEditingResource(null)} className="text-xl font-bold text-slate-400">✕</button>
+                </div>
+
+                <div className="flex rounded bg-slate-100 p-1 mb-4 text-xs font-semibold">
+                  <button onClick={() => setCreateMode('upload')} className={`flex-1 py-1 rounded ${createMode === 'upload' ? 'bg-white shadow text-physics-navy' : 'text-slate-600'}`}>📤 Tải tệp</button>
+                  <button onClick={() => setCreateMode('link')} className={`flex-1 py-1 rounded ${createMode === 'link' ? 'bg-white shadow text-physics-navy' : 'text-slate-600'}`}>🔗 Dán link</button>
+                  <button onClick={() => setCreateMode('compose')} className={`flex-1 py-1 rounded ${createMode === 'compose' ? 'bg-white shadow text-physics-navy' : 'text-slate-600'}`}>✍ Soạn công thức</button>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="block font-semibold mb-1">Tiêu đề học liệu *:</label>
+                    <input type="text" value={editingResource.title} onChange={e => setEditingResource({ ...editingResource, title: e.target.value })} className="w-full border p-2 rounded" />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1">Mô tả học liệu *:</label>
+                    <textarea rows={2} value={editingResource.description} onChange={e => setEditingResource({ ...editingResource, description: e.target.value })} className="w-full border p-2 rounded" />
+                  </div>
+
+                  {createMode === 'upload' && (
+                    <div className="p-3 bg-slate-50 border rounded-lg">
+                      <label className="block font-semibold mb-1">Tải tệp (PDF, Word, PPTX, Excel, MP4):</label>
+                      <input type="file" onChange={handleSimulatedUpload} className="w-full text-xs" />
+                      {uploadProgress !== null && (
+                        <div className="mt-2">
+                          <div className="w-full bg-slate-200 rounded-full h-2">
+                            <div className="bg-teal-600 h-2 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
+                          </div>
+                          <span className="text-[10px] text-teal-700 font-bold mt-1 block">Tiến độ: {uploadProgress}%</span>
+                        </div>
+                      )}
+                      {uploadError && <p className="text-rose-600 text-[11px] mt-1">{uploadError}</p>}
+                    </div>
+                  )}
+
+                  {createMode === 'link' && (
+                    <div>
+                      <label className="block font-semibold mb-1">Đường dẫn URL (YouTube/PhET/Canva/PPT):</label>
+                      <input type="url" value={editingResource.url || ''} onChange={e => setEditingResource({ ...editingResource, url: e.target.value })} className="w-full border p-2 rounded" />
+                    </div>
+                  )}
+
+                  {createMode === 'compose' && (
+                    <div>
+                      <label className="block font-semibold mb-1">Công thức KaTeX:</label>
+                      <input type="text" value={editingResource.url || ''} onChange={e => setEditingResource({ ...editingResource, url: e.target.value })} className="w-full border p-2 rounded font-mono" />
+                      {editingResource.url && <div className="p-2 border rounded mt-1 text-center"><MathFormula latex={editingResource.url} displayMode={true} /></div>}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold mb-1">Loại học liệu:</label>
+                      <select value={editingResource.type} onChange={e => setEditingResource({ ...editingResource, type: e.target.value })} className="w-full border p-2 rounded">
+                        <option value="experiment">Thí nghiệm thực</option>
+                        <option value="simulation">Mô phỏng tương tác</option>
+                        <option value="video_experiment">Video thí nghiệm</option>
+                        <option value="video_lesson">Video bài học</option>
+                        <option value="document">Tài liệu</option>
+                        <option value="presentation">Slide trình chiếu Canva/PPTX</option>
+                        <option value="worksheet">Phiếu học tập</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1">Khối lớp:</label>
+                      <select value={editingResource.grade} onChange={e => setEditingResource({ ...editingResource, grade: parseInt(e.target.value) })} className="w-full border p-2 rounded">
+                        <option value={10}>Lớp 10</option>
+                        <option value={11}>Lớp 11</option>
+                        <option value={12}>Lớp 12</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Multi-lesson linking checklist (Requirement 1 & 6) */}
+                  <div>
+                    <label className="block font-semibold mb-1">Liên kết với bài học (1 học liệu có thể liên kết nhiều bài):</label>
+                    <div className="max-h-28 overflow-y-auto border rounded p-2 space-y-1">
+                      {lessons.map(les => (
+                        <label key={les.id} className="flex items-center space-x-2 cursor-pointer text-[11px]">
+                          <input
+                            type="checkbox"
+                            checked={editingResource.linkedLessonIds.includes(les.id)}
+                            onChange={e => {
+                              const next = e.target.checked
+                                ? [...editingResource.linkedLessonIds, les.id]
+                                : editingResource.linkedLessonIds.filter(id => id !== les.id);
+                              setEditingResource({ ...editingResource, linkedLessonIds: next });
+                            }}
+                          />
+                          <span>Lớp {les.grade}: {les.title}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 mt-4 border-t flex justify-between items-center text-xs">
+                  <button onClick={() => setEditingResource(null)} className="px-3 py-1.5 border rounded">Hủy</button>
+                  <div className="space-x-2">
+                    <button onClick={() => handleSaveResource(editingResource, 'draft')} className="px-3 py-1.5 bg-slate-200 text-slate-800 rounded font-bold">Lưu nháp</button>
+                    <button onClick={() => handleSaveResource(editingResource, 'published')} className="px-4 py-1.5 bg-teal-600 text-white rounded font-bold">Xuất bản ngay ✓</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* FIREBASE MODAL */}
+          {showFirebaseModal && (
+            <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-lg w-full p-6 text-xs space-y-4">
+                <div className="flex justify-between items-center pb-2 border-b">
+                  <h3 className="font-bold text-sm">Cấu hình Đám mây Firebase</h3>
+                  <button onClick={() => setShowFirebaseModal(false)} className="text-xl font-bold text-slate-400">✕</button>
+                </div>
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded text-amber-900">
+                  <p className="font-bold">Đang ở Chế độ Bản xem trước (Preview Mode)</p>
+                  <p className="mt-1">Tất cả chức năng hoạt động trọn vẹn trong trình duyệt. Để kết nối Firebase Firestore và Storage trực tuyến, vui lòng thêm các biến môi trường vào tệp .env.</p>
+                </div>
+                <div className="flex justify-end">
+                  <button onClick={() => setShowFirebaseModal(false)} className="px-4 py-2 bg-physics-navy text-white rounded font-bold">Đã hiểu</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* REPORT MODAL */}
+          {reportModalItem && (
+            <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl max-w-md w-full p-6 text-xs space-y-3">
+                <h3 className="font-bold text-sm text-rose-700">🚩 Báo lỗi học liệu: {reportModalItem.title}</h3>
+                <p className="text-slate-500">Mô tả lỗi hoặc sự cố liên kết để ban quản trị kiểm tra.</p>
+                <textarea rows={3} placeholder="Mô tả lỗi..." className="w-full border p-2 rounded" />
+                <div className="flex justify-end space-x-2 pt-2">
+                  <button onClick={() => setReportModalItem(null)} className="px-3 py-1.5 border rounded">Hủy</button>
+                  <button onClick={() => { alert('Cảm ơn bạn đã gửi báo cáo lỗi!'); setReportModalItem(null); }} className="px-4 py-1.5 bg-rose-600 text-white rounded font-bold">Gửi</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Render the React application
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
