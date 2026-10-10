@@ -3,6 +3,8 @@ export interface EmbedInfo {
   embedUrl: string | null;
   originalUrl: string;
   canEmbed: boolean;
+  videoId?: string;
+  thumbnailUrl?: string;
   message?: string;
 }
 
@@ -27,11 +29,14 @@ export function parseEmbedUrl(url: string | undefined): EmbedInfo {
   // 1. YouTube
   const ytMatch = cleanUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
   if (ytMatch && ytMatch[1]) {
+    const vidId = ytMatch[1];
     return {
       type: 'youtube',
-      embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?rel=0&modestbranding=1`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${vidId}?rel=0&modestbranding=1`,
       originalUrl: cleanUrl,
       canEmbed: true,
+      videoId: vidId,
+      thumbnailUrl: `https://img.youtube.com/vi/${vidId}/hqdefault.jpg`,
     };
   }
 

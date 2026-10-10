@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { GradeLevel, Lesson, Resource } from '../types';
 import { matchesSearch } from '../utils/vietnameseSearch';
+import { parseEmbedUrl } from '../utils/embedHelpers';
 
 interface HomePageProps {
   lessons: Lesson[];
@@ -364,39 +365,64 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {newVideos.map(vid => (
-            <div
-              key={vid.id}
-              onClick={() => onSelectTab('videos')}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all overflow-hidden cursor-pointer flex flex-col justify-between"
-            >
-              <div className="relative aspect-video bg-slate-900 flex items-center justify-center">
-                <img
-                  src="https://images.unsplash.com/photo-1518152006812-edab29b069ac?auto=format&fit=crop&w=600&q=80"
-                  alt={vid.title}
-                  className="w-full h-full object-cover opacity-60"
-                  loading="lazy"
-                />
-                <div className="absolute w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center text-lg shadow">
-                  ▶
-                </div>
-                {vid.duration && (
-                  <span className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/80 text-white text-[10px] font-mono">
-                    {vid.duration}
+          {newVideos.map(vid => {
+            const embed = parseEmbedUrl(vid.url);
+            const thumb = vid.thumbnailUrl || embed.thumbnailUrl;
+            return (
+              <div
+                key={vid.id}
+                onClick={() => onSelectTab('videos')}
+                className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-lg transition-all overflow-hidden cursor-pointer flex flex-col justify-between group"
+              >
+                <div className="relative aspect-video bg-slate-900 flex items-center justify-center overflow-hidden">
+                  {thumb ? (
+                    <img
+                      src={thumb}
+                      alt={vid.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-slate-800 flex items-center justify-center text-slate-400 text-xs">Video học liệu</div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-center justify-center group-hover:bg-black/30 transition-colors">
+                    <div className="w-14 h-10 rounded-2xl bg-red-600/90 group-hover:bg-red-600 group-hover:scale-110 shadow-xl flex items-center justify-center transition-all">
+                      <svg className="w-5 h-5 text-white ml-0.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                    </div>
+                  </div>
+                  <span className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-physics-navy/90 text-white text-[10px] font-bold rounded uppercase backdrop-blur-sm shadow">
+                    Lớp {vid.grade}
                   </span>
-                )}
+                  <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm shadow bg-purple-900/80 text-purple-200">
+                    {vid.type === 'video_experiment' ? 'Thí nghiệm' : 'Bài giảng'}
+                  </span>
+                  {vid.duration && (
+                    <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 bg-black/85 text-white text-[11px] font-bold rounded font-mono shadow">
+                      {vid.duration}
+                    </span>
+                  )}
+                </div>
+                <div className="p-4 flex-1 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                      {vid.type === 'video_experiment' ? 'Video thí nghiệm' : 'Video bài học'}
+                    </span>
+                    <h3 className="font-bold text-slate-800 group-hover:text-teal-600 text-sm mt-1.5 mb-1 line-clamp-2 transition-colors">
+                      {vid.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 line-clamp-2">{vid.description}</p>
+                  </div>
+                </div>
+                <div className="p-3 bg-slate-50 border-t flex justify-between items-center text-xs">
+                  <span className="text-slate-500 font-medium truncate max-w-[150px]">{vid.author}</span>
+                  <span className="px-3 py-1 bg-physics-navy group-hover:bg-physics-blue text-white rounded font-medium flex items-center gap-1 transition-colors">
+                    <span>Xem video</span>
+                    <span className="text-red-400">▶</span>
+                  </span>
+                </div>
               </div>
-              <div className="p-4">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
-                  {vid.type === 'video_experiment' ? 'Video thí nghiệm' : 'Video bài giảng'}
-                </span>
-                <h3 className="font-bold text-slate-800 text-sm mt-1.5 mb-1 line-clamp-2">
-                  {vid.title}
-                </h3>
-                <p className="text-xs text-slate-500 line-clamp-2">{vid.description}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

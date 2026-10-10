@@ -109,31 +109,44 @@ export const VideosPage: React.FC<VideosPageProps> = ({ resources }) => {
               className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between overflow-hidden"
             >
               <div>
-                {/* Thumbnail / Play Preview Placeholder */}
-                <div
-                  onClick={() => setPlayingVideo(vid)}
-                  className="relative aspect-video bg-slate-900 group cursor-pointer overflow-hidden flex items-center justify-center"
-                >
-                  <img
-                    src="https://images.unsplash.com/photo-1518152006812-edab29b069ac?auto=format&fit=crop&w=600&q=80"
-                    alt={vid.title}
-                    className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                    <div className="w-12 h-12 rounded-full bg-red-600 group-hover:bg-red-500 text-white flex items-center justify-center text-xl shadow-lg transition-transform group-hover:scale-110">
-                      ▶
+                {/* Thumbnail / Play Preview */}
+                {(() => {
+                  const embed = parseEmbedUrl(vid.url);
+                  const thumb = vid.thumbnailUrl || embed.thumbnailUrl;
+                  return (
+                    <div
+                      onClick={() => setPlayingVideo(vid)}
+                      className="relative aspect-video bg-slate-900 group cursor-pointer overflow-hidden flex items-center justify-center"
+                    >
+                      {thumb ? (
+                        <img
+                          src={thumb}
+                          alt={vid.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-slate-800 flex items-center justify-center text-slate-400 text-xs">Video học liệu</div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-center justify-center group-hover:bg-black/30 transition-colors">
+                        <div className="w-14 h-10 rounded-2xl bg-red-600/90 group-hover:bg-red-600 group-hover:scale-110 shadow-xl flex items-center justify-center transition-all">
+                          <svg className="w-5 h-5 text-white ml-0.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                        </div>
+                      </div>
+                      <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded bg-physics-navy/90 text-white text-[10px] font-bold uppercase backdrop-blur-sm shadow">
+                        Lớp {vid.grade}
+                      </span>
+                      <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm shadow bg-purple-900/80 text-purple-200">
+                        {vid.type === 'video_experiment' ? 'Thí nghiệm' : 'Bài giảng'}
+                      </span>
+                      {vid.duration && (
+                        <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded bg-black/85 text-white text-[11px] font-bold font-mono shadow">
+                          {vid.duration}
+                        </span>
+                      )}
                     </div>
-                  </div>
-                  {vid.duration && (
-                    <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/80 text-white text-[10px] font-mono">
-                      {vid.duration}
-                    </span>
-                  )}
-                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-blue-900/80 text-white text-[10px] font-bold">
-                    Lớp {vid.grade}
-                  </span>
-                </div>
+                  );
+                })()}
 
                 <div className="p-4">
                   <h3

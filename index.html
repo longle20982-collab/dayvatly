@@ -94,16 +94,19 @@
 
     // --- UTILS: URL & EMBED HELPER ---
     function parseEmbedUrl(url) {
-      if (!url || !url.trim()) return { canEmbed: false, embedUrl: null, originalUrl: '' };
+      if (!url || !url.trim()) return { canEmbed: false, embedUrl: null, originalUrl: '', videoId: null, thumbnailUrl: null };
       const cleanUrl = url.trim();
       
       // YouTube
       const ytMatch = cleanUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
       if (ytMatch && ytMatch[1]) {
+        const vidId = ytMatch[1];
         return {
           canEmbed: true,
-          embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?rel=0&modestbranding=1`,
+          embedUrl: `https://www.youtube-nocookie.com/embed/${vidId}?rel=0&modestbranding=1`,
           originalUrl: cleanUrl,
+          videoId: vidId,
+          thumbnailUrl: `https://img.youtube.com/vi/${vidId}/hqdefault.jpg`,
         };
       }
 
@@ -710,6 +713,7 @@
         status: 'published',
         url: 'https://www.youtube.com/watch?v=OB4SjDuTnhI',
         duration: '42:18',
+        thumbnailUrl: 'https://img.youtube.com/vi/OB4SjDuTnhI/hqdefault.jpg',
         guidingQuestions: ['Độ dốc của đồ thị v-t biểu thị đại lượng nào?', 'Khi xe dừng lại thì vận tốc tức thời bằng bao nhiêu?']
       },
       {
@@ -724,6 +728,7 @@
         status: 'published',
         url: 'https://www.youtube.com/watch?v=6Q0J3HcHeEs',
         duration: '07:35',
+        thumbnailUrl: 'https://img.youtube.com/vi/6Q0J3HcHeEs/hqdefault.jpg',
         guidingQuestions: ['Tại sao phải dùng tấm cản quang hẹp để kích hoạt cổng quang điện?', 'Gia tốc tính được từ thực nghiệm chịu ảnh hưởng của yếu tố ma sát nào?']
       },
       {
@@ -738,6 +743,7 @@
         status: 'published',
         url: 'https://www.youtube.com/watch?v=denoYcH-Mfs',
         duration: '38:45',
+        thumbnailUrl: 'https://img.youtube.com/vi/denoYcH-Mfs/hqdefault.jpg',
         guidingQuestions: ['Gia tốc của vật có cùng hướng với hợp lực tác dụng không?', 'Khi lực không đổi, khối lượng m tăng gấp đôi thì gia tốc thay đổi thế nào?']
       },
       {
@@ -752,6 +758,7 @@
         status: 'published',
         url: 'https://www.youtube.com/watch?v=_J2Ltm6tRKQ',
         duration: '31:20',
+        thumbnailUrl: 'https://img.youtube.com/vi/_J2Ltm6tRKQ/hqdefault.jpg',
         guidingQuestions: ['Li độ x đạt giá trị lớn nhất khi nào?', 'Vận tốc sớm pha hay trễ pha hơn li độ một góc bằng bao nhiêu?']
       },
       {
@@ -766,6 +773,7 @@
         status: 'published',
         url: 'https://www.youtube.com/watch?v=oK8S69NGwvs',
         duration: '05:12',
+        thumbnailUrl: 'https://img.youtube.com/vi/oK8S69NGwvs/hqdefault.jpg',
         guidingQuestions: ['Vôn kế mắc song song hay nối tiếp với điện trở mẫu?', 'Đồ thị quan hệ giữa I và U có hình dạng đường gì?']
       },
       {
@@ -780,6 +788,7 @@
         status: 'published',
         url: 'https://www.youtube.com/watch?v=XW161L4eS8E',
         duration: '12:45',
+        thumbnailUrl: 'https://img.youtube.com/vi/XW161L4eS8E/hqdefault.jpg',
         guidingQuestions: ['Tại sao phải bắt đầu bấm giờ khi nước đã sôi sùng sục ở 100°C?', 'Hao phí nhiệt ra không khí làm cho giá trị L đo được lớn hơn hay nhỏ hơn giá trị lí thuyết?']
       },
       {
@@ -794,6 +803,7 @@
         status: 'published',
         url: 'https://www.youtube.com/watch?v=i4CcQQil00k',
         duration: '06:50',
+        thumbnailUrl: 'https://img.youtube.com/vi/i4CcQQil00k/hqdefault.jpg',
         guidingQuestions: ['Tại sao phải ấn piston chậm rãi khi nén khí?', 'Tích số p · V có thay đổi đáng kể khi nén xilanh không?']
       },
       {
@@ -912,6 +922,69 @@
       const [createMode, setCreateMode] = useState('link'); // 'upload', 'link', 'compose'
       const [uploadProgress, setUploadProgress] = useState(null);
       const [uploadError, setUploadError] = useState(null);
+      const [showJsonModal, setShowJsonModal] = useState(false);
+      const [jsonInput, setJsonInput] = useState('');
+      const [jsonError, setJsonError] = useState(null);
+      const [jsonSuccess, setJsonSuccess] = useState(null);
+
+      const handleExportJson = () => {
+        const payload = {
+          siteTitle,
+          authorLine,
+          textbooks,
+          chapters,
+          lessons,
+          resources,
+          exportedAt: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dayvatly_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+
+      const handleImportJsonText = (text) => {
+        setJsonError(null);
+        setJsonSuccess(null);
+        try {
+          const data = JSON.parse(text);
+          let count = 0;
+          if (Array.isArray(data.lessons)) { setLessons(data.lessons); count += data.lessons.length; }
+          if (Array.isArray(data.resources)) { setResources(data.resources); count += data.resources.length; }
+          if (Array.isArray(data.chapters)) { setChapters(data.chapters); count += data.chapters.length; }
+          if (Array.isArray(data.textbooks)) { setTextbooks(data.textbooks); count += data.textbooks.length; }
+          if (data.authorLine) setAuthorLine(data.authorLine);
+          if (data.siteTitle) setSiteTitle(data.siteTitle);
+          setJsonSuccess(`Đã nạp thành công dữ liệu từ JSON (${count} mục được cập nhật)!`);
+          setTimeout(() => {
+            setShowJsonModal(false);
+            setJsonSuccess(null);
+            setJsonInput('');
+          }, 1500);
+        } catch (err) {
+          setJsonError('Định dạng JSON không hợp lệ: ' + err.message);
+        }
+      };
+
+      const handleJsonFileChange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const content = event.target.result;
+          setJsonInput(content);
+          handleImportJsonText(content);
+        };
+        reader.onerror = () => {
+          setJsonError('Không thể đọc tệp tin đã chọn.');
+        };
+        reader.readAsText(file);
+      };
 
       // Escape key for presentation mode (Requirement 5)
       useEffect(() => {
@@ -1670,23 +1743,60 @@
                         </button>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {publicResources.filter(r => r.type === 'video_experiment' || r.type === 'video_lesson').slice(0, 3).map(vid => (
-                          <div key={vid.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-all flex flex-col justify-between">
-                            <div onClick={() => setActiveVideoModal(vid)} className="aspect-video bg-slate-900 cursor-pointer flex items-center justify-center relative">
-                              <span className="text-3xl text-red-600">▶</span>
-                              {vid.duration && <span className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-white text-[10px] rounded font-mono">{vid.duration}</span>}
+                        {publicResources.filter(r => r.type === 'video_experiment' || r.type === 'video_lesson').slice(0, 3).map(vid => {
+                          const embed = parseEmbedUrl(vid.url);
+                          const thumb = vid.thumbnailUrl || embed.thumbnailUrl;
+                          return (
+                            <div key={vid.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all flex flex-col justify-between group">
+                              <div onClick={() => setActiveVideoModal(vid)} className="aspect-video bg-slate-900 cursor-pointer relative overflow-hidden flex items-center justify-center">
+                                {thumb ? (
+                                  <img
+                                    src={thumb}
+                                    alt={vid.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-slate-800 flex items-center justify-center text-slate-400 text-xs">Video học liệu</div>
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-center justify-center group-hover:bg-black/30 transition-colors">
+                                  <div className="w-14 h-10 rounded-2xl bg-red-600/90 group-hover:bg-red-600 group-hover:scale-110 shadow-xl flex items-center justify-center transition-all">
+                                    <svg className="w-5 h-5 text-white ml-0.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                                  </div>
+                                </div>
+                                <span className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-physics-navy/90 text-white text-[10px] font-bold rounded uppercase backdrop-blur-sm shadow">
+                                  Lớp {vid.grade}
+                                </span>
+                                <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm shadow bg-purple-900/80 text-purple-200">
+                                  {vid.type === 'video_experiment' ? 'Thí nghiệm' : 'Bài giảng'}
+                                </span>
+                                {vid.duration && (
+                                  <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 bg-black/85 text-white text-[11px] font-bold rounded font-mono shadow">
+                                    {vid.duration}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="p-4 flex-1 flex flex-col justify-between">
+                                <div>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                                    {vid.type === 'video_experiment' ? 'Video thí nghiệm' : 'Video bài học'}
+                                  </span>
+                                  <h3 onClick={() => setActiveVideoModal(vid)} className="font-bold text-slate-800 group-hover:text-teal-600 cursor-pointer text-sm mt-1.5 mb-1 line-clamp-2 transition-colors">
+                                    {vid.title}
+                                  </h3>
+                                  <p className="text-xs text-slate-500 line-clamp-2">{vid.description}</p>
+                                </div>
+                              </div>
+                              <div className="p-3 bg-slate-50 border-t flex justify-between items-center text-xs">
+                                <span className="text-slate-500 font-medium truncate max-w-[150px]">{vid.author}</span>
+                                <button onClick={() => setActiveVideoModal(vid)} className="px-3 py-1 bg-physics-navy hover:bg-physics-blue text-white rounded font-medium flex items-center gap-1 transition-colors">
+                                  <span>Xem video</span>
+                                  <span className="text-red-400">▶</span>
+                                </button>
+                              </div>
                             </div>
-                            <div className="p-4">
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">{vid.type === 'video_experiment' ? 'Video thí nghiệm' : 'Video bài học'}</span>
-                              <h3 className="font-bold text-slate-800 text-sm mt-1 mb-1">{vid.title}</h3>
-                              <p className="text-xs text-slate-500 line-clamp-2">{vid.description}</p>
-                            </div>
-                            <div className="p-3 bg-slate-50 border-t flex justify-between items-center text-xs">
-                              <span className="text-slate-400">{vid.author}</span>
-                              <button onClick={() => setActiveVideoModal(vid)} className="px-3 py-1 bg-physics-navy text-white rounded font-medium">Xem video ▶</button>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </section>
 
@@ -1949,26 +2059,73 @@
                 {/* VIDEOS PAGE */}
                 {currentTab === 'videos' && (
                   <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
-                    <h1 className="text-2xl font-extrabold text-physics-dark mb-1">Thư viện Video Vật lí THPT</h1>
-                    <p className="text-xs text-slate-500 mb-6">Video thí nghiệm thực tế và video bài giảng chi tiết.</p>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                      <div>
+                        <h1 className="text-2xl font-extrabold text-physics-dark mb-1">Thư viện Video Vật lí THPT</h1>
+                        <p className="text-xs text-slate-500">Video thí nghiệm thực tế và video bài giảng chi tiết bám sát chương trình GDPT 2018.</p>
+                      </div>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {publicResources.filter(r => r.type === 'video_experiment' || r.type === 'video_lesson').map(vid => (
-                        <div key={vid.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-all flex flex-col justify-between">
-                          <div onClick={() => setActiveVideoModal(vid)} className="aspect-video bg-slate-900 cursor-pointer flex items-center justify-center relative">
-                            <span className="text-3xl text-red-600">▶</span>
-                            {vid.duration && <span className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-white text-[10px] rounded font-mono">{vid.duration}</span>}
+                      {publicResources.filter(r => r.type === 'video_experiment' || r.type === 'video_lesson').map(vid => {
+                        const embed = parseEmbedUrl(vid.url);
+                        const thumb = vid.thumbnailUrl || embed.thumbnailUrl;
+                        return (
+                          <div key={vid.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all flex flex-col justify-between group">
+                            <div onClick={() => setActiveVideoModal(vid)} className="aspect-video bg-slate-900 cursor-pointer relative overflow-hidden flex items-center justify-center">
+                              {thumb ? (
+                                <img
+                                  src={thumb}
+                                  alt={vid.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-slate-800 flex items-center justify-center text-slate-400 text-xs">Video học liệu</div>
+                              )}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-center justify-center group-hover:bg-black/30 transition-colors">
+                                <div className="w-14 h-10 rounded-2xl bg-red-600/90 group-hover:bg-red-600 group-hover:scale-110 shadow-xl flex items-center justify-center transition-all">
+                                  <svg className="w-5 h-5 text-white ml-0.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                                </div>
+                              </div>
+                              <span className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-physics-navy/90 text-white text-[10px] font-bold rounded uppercase backdrop-blur-sm shadow">
+                                Lớp {vid.grade}
+                              </span>
+                              <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm shadow bg-purple-900/80 text-purple-200">
+                                {vid.type === 'video_experiment' ? 'Thí nghiệm' : 'Bài giảng'}
+                              </span>
+                              {vid.duration && (
+                                <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 bg-black/85 text-white text-[11px] font-bold rounded font-mono shadow">
+                                  {vid.duration}
+                                </span>
+                              )}
+                            </div>
+                            <div className="p-4 flex-1 flex flex-col justify-between">
+                              <div>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                                  {vid.type === 'video_experiment' ? 'Video thí nghiệm' : 'Video bài học'}
+                                </span>
+                                <h3 onClick={() => setActiveVideoModal(vid)} className="font-bold text-slate-800 group-hover:text-teal-600 cursor-pointer text-sm mt-1.5 mb-1 line-clamp-2 transition-colors">
+                                  {vid.title}
+                                </h3>
+                                <p className="text-xs text-slate-500 line-clamp-2 mb-2">{vid.description}</p>
+                                {vid.guidingQuestions && vid.guidingQuestions.length > 0 && (
+                                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-[11px] text-slate-600 mt-2">
+                                    <strong className="text-physics-navy block mb-0.5">Câu hỏi định hướng:</strong>
+                                    <p className="line-clamp-2">{vid.guidingQuestions[0]}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="p-3 bg-slate-50 border-t flex justify-between items-center text-xs">
+                              <span className="text-slate-500 font-medium truncate max-w-[150px]">{vid.author}</span>
+                              <button onClick={() => setActiveVideoModal(vid)} className="px-3 py-1 bg-physics-navy hover:bg-physics-blue text-white rounded font-medium flex items-center gap-1 transition-colors">
+                                <span>Xem video</span>
+                                <span className="text-red-400">▶</span>
+                              </button>
+                            </div>
                           </div>
-                          <div className="p-4">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">{vid.type === 'video_experiment' ? 'Video thí nghiệm' : 'Video bài học'}</span>
-                            <h3 className="font-bold text-slate-800 text-sm mt-1 mb-1">{vid.title}</h3>
-                            <p className="text-xs text-slate-500 line-clamp-2">{vid.description}</p>
-                          </div>
-                          <div className="p-3 bg-slate-50 border-t flex justify-between items-center text-xs">
-                            <span className="text-slate-400">{vid.author}</span>
-                            <button onClick={() => setActiveVideoModal(vid)} className="px-3 py-1 bg-physics-navy text-white rounded font-medium">Xem video ▶</button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -2014,32 +2171,41 @@
                       </div>
                     ) : (
                       <div>
-                        <div className="flex justify-between items-center mb-6 pb-4 border-b">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 pb-4 border-b">
                           <div>
                             <span className="text-xs font-bold text-teal-600 uppercase">{userRole === 'admin' ? 'Quản trị viên' : 'Giáo viên'}</span>
                             <h1 className="text-2xl font-bold text-slate-900">Bảng Quản trị Học liệu & Bài giảng</h1>
                           </div>
-                          <button
-                            onClick={() => {
-                              setEditingResource({
-                                id: `res_${Date.now()}`,
-                                title: '',
-                                description: '',
-                                type: 'experiment',
-                                grade: 10,
-                                linkedLessonIds: [],
-                                author: authorLine,
-                                source: 'Tổ Vật lí THPT',
-                                status: 'draft',
-                                tags: []
-                              });
-                              setCreateMode('link');
-                              setUploadProgress(null);
-                            }}
-                            className="px-4 py-2 bg-teal-600 text-white rounded-lg text-xs font-bold hover:bg-teal-500"
-                          >
-                            ➕ Thêm học liệu mới
-                          </button>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => setShowJsonModal(true)}
+                              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+                              title="Nhập dữ liệu hoặc Xuất sao lưu định dạng JSON"
+                            >
+                              <span>⚙️ Import / Export JSON</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingResource({
+                                  id: `res_${Date.now()}`,
+                                  title: '',
+                                  description: '',
+                                  type: 'experiment',
+                                  grade: 10,
+                                  linkedLessonIds: [],
+                                  author: authorLine,
+                                  source: 'Tổ Vật lí THPT',
+                                  status: 'draft',
+                                  tags: []
+                                });
+                                setCreateMode('link');
+                                setUploadProgress(null);
+                              }}
+                              className="px-4 py-2 bg-teal-600 text-white rounded-lg text-xs font-bold hover:bg-teal-500 shadow-sm transition-colors"
+                            >
+                              ➕ Thêm học liệu mới
+                            </button>
+                          </div>
                         </div>
 
                         {/* Teacher Subtabs */}
@@ -2236,20 +2402,47 @@
                         )}
 
                         {teacherTab === 'settings' && (
-                          <div className="bg-white p-6 rounded-xl border max-w-xl space-y-4 text-xs">
-                            <h3 className="font-bold text-sm text-slate-800">Cài đặt Website & Dòng Tác giả Chân trang</h3>
-                            <div>
-                              <label className="block font-semibold mb-1">Tên website:</label>
-                              <input type="text" value={siteTitle} onChange={e => setSiteTitle(e.target.value)} className="w-full border p-2 rounded" />
+                          <div className="space-y-6 max-w-2xl">
+                            <div className="bg-white p-6 rounded-xl border space-y-4 text-xs">
+                              <h3 className="font-bold text-sm text-slate-800">Cài đặt Website & Dòng Tác giả Chân trang</h3>
+                              <div>
+                                <label className="block font-semibold mb-1">Tên website:</label>
+                                <input type="text" value={siteTitle} onChange={e => setSiteTitle(e.target.value)} className="w-full border p-2 rounded" />
+                              </div>
+                              <div>
+                                <label className="block font-semibold mb-1">Dòng tác giả chân trang (Footer):</label>
+                                <input type="text" value={authorLine} onChange={e => setAuthorLine(e.target.value)} className="w-full border p-2 rounded" />
+                                <p className="text-[11px] text-slate-400 mt-1">Mặc định: "Ths: Lê Long - QT"</p>
+                              </div>
+                              <button onClick={() => alert('Đã lưu thay đổi cài đặt!')} className="px-4 py-2 bg-physics-navy text-white rounded font-bold hover:bg-physics-blue transition-colors">
+                                Lưu cài đặt
+                              </button>
                             </div>
-                            <div>
-                              <label className="block font-semibold mb-1">Dòng tác giả chân trang (Footer):</label>
-                              <input type="text" value={authorLine} onChange={e => setAuthorLine(e.target.value)} className="w-full border p-2 rounded" />
-                              <p className="text-[11px] text-slate-400 mt-1">Mặc định: "Ths: Lê Long - QT"</p>
+
+                            <div className="bg-white p-6 rounded-xl border space-y-4 text-xs">
+                              <div>
+                                <h3 className="font-bold text-sm text-physics-navy flex items-center gap-2">
+                                  <span>⚙️</span> Sao lưu & Nhập xuất Dữ liệu (JSON)
+                                </h3>
+                                <p className="text-slate-500 mt-1">
+                                  Cho phép giáo viên sao lưu toàn bộ bài học, học liệu, danh mục hoặc nạp dữ liệu từ tệp JSON chuẩn vào hệ thống.
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap gap-3 pt-1">
+                                <button
+                                  onClick={handleExportJson}
+                                  className="px-4 py-2 bg-physics-navy hover:bg-physics-blue text-white rounded-lg font-bold flex items-center gap-2 shadow-sm transition-colors"
+                                >
+                                  <span>📤 Xuất dữ liệu ra file JSON</span>
+                                </button>
+                                <button
+                                  onClick={() => setShowJsonModal(true)}
+                                  className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold flex items-center gap-2 shadow-sm transition-colors"
+                                >
+                                  <span>📥 Mở trình Nhập dữ liệu JSON</span>
+                                </button>
+                              </div>
                             </div>
-                            <button onClick={() => alert('Đã lưu thay đổi cài đặt!')} className="px-4 py-2 bg-physics-navy text-white rounded font-bold">
-                              Lưu cài đặt
-                            </button>
                           </div>
                         )}
                       </div>
@@ -2383,26 +2576,51 @@
           {/* VIDEO MODAL PLAYER */}
           {activeVideoModal && (
             <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl max-w-3xl w-full p-6">
+              <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl">
                 <div className="flex justify-between items-start pb-2 border-b mb-4">
-                  <h3 className="font-bold text-base">{activeVideoModal.title}</h3>
-                  <button onClick={() => setActiveVideoModal(null)} className="text-xl font-bold text-slate-400">✕</button>
+                  <div>
+                    <span className="text-xs font-bold text-teal-600 uppercase">
+                      {activeVideoModal.type === 'video_experiment' ? 'Video thí nghiệm thực hành' : 'Video bài giảng Vật lí'} • Lớp {activeVideoModal.grade}
+                    </span>
+                    <h3 className="font-bold text-base text-slate-900 mt-0.5">{activeVideoModal.title}</h3>
+                  </div>
+                  <button onClick={() => setActiveVideoModal(null)} className="text-2xl font-bold text-slate-400 hover:text-slate-700 leading-none">✕</button>
                 </div>
                 {(() => {
                   const embed = parseEmbedUrl(activeVideoModal.url);
                   return embed.canEmbed && embed.embedUrl ? (
-                    <div className="aspect-video w-full rounded-lg overflow-hidden bg-black mb-3">
-                      <iframe src={embed.embedUrl} title={activeVideoModal.title} className="w-full h-full border-0" allowFullScreen />
+                    <div className="aspect-video w-full rounded-xl overflow-hidden bg-black mb-4 shadow-lg">
+                      <iframe
+                        src={embed.embedUrl}
+                        title={activeVideoModal.title}
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
                     </div>
                   ) : (
-                    <div className="aspect-video w-full rounded-lg bg-slate-800 flex items-center justify-center text-white text-xs mb-3">
-                      <a href={activeVideoModal.url} target="_blank" rel="noreferrer" className="px-4 py-2 bg-teal-600 rounded font-bold">Mở video gốc ↗</a>
+                    <div className="aspect-video w-full rounded-xl bg-slate-800 flex flex-col items-center justify-center text-white text-xs mb-4 p-4 text-center">
+                      <p className="mb-3 text-slate-300">Không thể nhúng trực tiếp nguồn video này.</p>
+                      <a href={activeVideoModal.url} target="_blank" rel="noreferrer" className="px-4 py-2 bg-teal-600 hover:bg-teal-500 rounded font-bold transition-colors">Mở video gốc ↗</a>
                     </div>
                   );
                 })()}
-                <p className="text-xs text-slate-600">{activeVideoModal.description}</p>
-                <div className="pt-3 mt-3 border-t flex justify-end">
-                  <button onClick={() => setActiveVideoModal(null)} className="px-4 py-1.5 bg-slate-800 text-white rounded text-xs">Đóng</button>
+                <p className="text-xs text-slate-600 mb-3">{activeVideoModal.description}</p>
+                {activeVideoModal.guidingQuestions && activeVideoModal.guidingQuestions.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3 text-xs">
+                    <h4 className="font-bold text-physics-navy mb-1 flex items-center gap-1.5">
+                      <span>💡</span> Câu hỏi định hướng học tập:
+                    </h4>
+                    <ul className="list-disc pl-5 space-y-1 text-slate-700">
+                      {activeVideoModal.guidingQuestions.map((q, idx) => (
+                        <li key={idx}>{q}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="pt-3 border-t flex justify-between items-center text-xs">
+                  <span className="text-slate-500">Nguồn: <strong className="text-slate-700">{activeVideoModal.source || activeVideoModal.author}</strong></span>
+                  <button onClick={() => setActiveVideoModal(null)} className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded text-xs font-semibold">Đóng</button>
                 </div>
               </div>
             </div>
@@ -2550,6 +2768,98 @@
                 <div className="flex justify-end space-x-2 pt-2">
                   <button onClick={() => setReportModalItem(null)} className="px-3 py-1.5 border rounded">Hủy</button>
                   <button onClick={() => { alert('Cảm ơn bạn đã gửi báo cáo lỗi!'); setReportModalItem(null); }} className="px-4 py-1.5 bg-rose-600 text-white rounded font-bold">Gửi</button>
+                </div>
+              </div>
+            </div>
+          {/* JSON IMPORT / EXPORT MODAL */}
+          {showJsonModal && (
+            <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl animate-fadeIn text-xs">
+                <div className="flex justify-between items-center pb-3 border-b mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📁</span>
+                    <h3 className="font-bold text-base text-slate-900">Quản lí Nhập / Xuất dữ liệu JSON</h3>
+                  </div>
+                  <button onClick={() => { setShowJsonModal(false); setJsonError(null); setJsonSuccess(null); }} className="text-2xl font-bold text-slate-400 hover:text-slate-700 leading-none">✕</button>
+                </div>
+
+                {jsonError && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg mb-4 font-medium flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>{jsonError}</span>
+                  </div>
+                )}
+                {jsonSuccess && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg mb-4 font-bold flex items-center gap-2">
+                    <span>✅</span>
+                    <span>{jsonSuccess}</span>
+                  </div>
+                )}
+
+                <div className="space-y-5">
+                  {/* Section 1: Export */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                    <h4 className="font-bold text-physics-navy text-sm mb-1 flex items-center gap-2">
+                      <span>📤</span> Xuất dữ liệu sao lưu (Export JSON)
+                    </h4>
+                    <p className="text-slate-500 mb-3">
+                      Tải về tệp JSON chứa tất cả bài học ({lessons.length}), học liệu ({resources.length}), danh mục chương ({chapters.length}) và cấu hình.
+                    </p>
+                    <button
+                      onClick={handleExportJson}
+                      className="px-4 py-2 bg-physics-navy hover:bg-physics-blue text-white rounded-lg font-bold flex items-center gap-2 shadow-sm transition-colors"
+                    >
+                      <span>💾 Tải file backup (.json)</span>
+                    </button>
+                  </div>
+
+                  {/* Section 2: Import File */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                    <h4 className="font-bold text-teal-800 text-sm flex items-center gap-2">
+                      <span>📥</span> Nhập dữ liệu từ máy tính (Import File)
+                    </h4>
+                    <p className="text-slate-500">
+                      Chọn tệp <code className="bg-slate-200 px-1 py-0.5 rounded font-mono text-slate-700">.json</code> từ thiết bị của bạn để nạp vào hệ thống:
+                    </p>
+                    <input
+                      type="file"
+                      accept=".json,application/json"
+                      onChange={handleJsonFileChange}
+                      className="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-600 file:text-white hover:file:bg-teal-500 file:cursor-pointer cursor-pointer border border-slate-300 rounded-lg p-1 bg-white"
+                    />
+                  </div>
+
+                  {/* Section 3: Paste JSON text */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                    <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                      <span>✍️</span> Hoặc dán mã JSON trực tiếp:
+                    </h4>
+                    <textarea
+                      rows={6}
+                      value={jsonInput}
+                      onChange={e => setJsonInput(e.target.value)}
+                      placeholder='{\n  "lessons": [...],\n  "resources": [...]\n}'
+                      className="w-full border border-slate-300 p-2.5 rounded-lg font-mono text-[11px] bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        onClick={() => handleImportJsonText(jsonInput)}
+                        disabled={!jsonInput.trim()}
+                        className="px-4 py-2 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white rounded-lg font-bold shadow-sm transition-colors"
+                      >
+                        Nạp dữ liệu từ văn bản JSON
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 mt-4 border-t flex justify-end">
+                  <button
+                    onClick={() => { setShowJsonModal(false); setJsonError(null); setJsonSuccess(null); }}
+                    className="px-4 py-1.5 bg-slate-800 text-white rounded-lg font-semibold"
+                  >
+                    Đóng
+                  </button>
                 </div>
               </div>
             </div>

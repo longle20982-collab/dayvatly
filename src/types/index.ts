@@ -143,6 +143,7 @@ export interface Resource {
   fileSize?: number;
   embedType?: 'youtube' | 'phet' | 'canva' | 'powerpoint' | 'geogebra' | 'drive' | 'custom_sim' | 'office_online' | 'html_safe';
   duration?: string;
+  thumbnailUrl?: string;
   guidingQuestions?: string[];
   experimentData?: ExperimentMetadata;
 }

@@ -1127,6 +1127,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     url: 'https://www.youtube.com/watch?v=OB4SjDuTnhI',
     embedType: 'youtube',
     duration: '42:18',
+    thumbnailUrl: 'https://img.youtube.com/vi/OB4SjDuTnhI/hqdefault.jpg',
     guidingQuestions: [
       'Làm thế nào để nhận biết chiều chuyển động của vật dựa vào dấu của v trên đồ thị v-t?',
       'Khi xe dừng hẳn thì vận tốc tức thời bằng bao nhiêu?'
@@ -1155,6 +1156,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     url: 'https://www.youtube.com/watch?v=6Q0J3HcHeEs',
     embedType: 'youtube',
     duration: '07:35',
+    thumbnailUrl: 'https://img.youtube.com/vi/6Q0J3HcHeEs/hqdefault.jpg',
     guidingQuestions: [
       'Tại sao phải dùng tấm cản quang hẹp để kích hoạt cổng quang điện?',
       'Gia tốc tính được từ thực nghiệm chịu ảnh hưởng của yếu tố ma sát nào?'
@@ -1183,6 +1185,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     url: 'https://www.youtube.com/watch?v=denoYcH-Mfs',
     embedType: 'youtube',
     duration: '38:45',
+    thumbnailUrl: 'https://img.youtube.com/vi/denoYcH-Mfs/hqdefault.jpg',
     guidingQuestions: [
       'Gia tốc của vật có cùng hướng với hợp lực tác dụng không?',
       'Khi lực không đổi, khối lượng m tăng gấp đôi thì gia tốc thay đổi thế nào?'
@@ -1211,6 +1214,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     url: 'https://www.youtube.com/watch?v=_J2Ltm6tRKQ',
     embedType: 'youtube',
     duration: '31:20',
+    thumbnailUrl: 'https://img.youtube.com/vi/_J2Ltm6tRKQ/hqdefault.jpg',
     guidingQuestions: [
       'Li độ x đạt giá trị lớn nhất khi nào?',
       'Vận tốc sớm pha hay trễ pha hơn li độ một góc bằng bao nhiêu?'
@@ -1239,6 +1243,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     url: 'https://www.youtube.com/watch?v=oK8S69NGwvs',
     embedType: 'youtube',
     duration: '05:12',
+    thumbnailUrl: 'https://img.youtube.com/vi/oK8S69NGwvs/hqdefault.jpg',
     guidingQuestions: [
       'Vôn kế mắc song song hay nối tiếp với điện trở mẫu?',
       'Đồ thị quan hệ giữa I và U có hình dạng đường gì?'
@@ -1267,6 +1272,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     url: 'https://www.youtube.com/watch?v=XW161L4eS8E',
     embedType: 'youtube',
     duration: '12:45',
+    thumbnailUrl: 'https://img.youtube.com/vi/XW161L4eS8E/hqdefault.jpg',
     guidingQuestions: [
       'Tại sao phải bắt đầu bấm giờ khi nước đã sôi sùng sục ở 100°C?',
       'Hao phí nhiệt ra không khí làm cho giá trị L đo được lớn hơn hay nhỏ hơn giá trị lí thuyết?'
@@ -1295,6 +1301,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     url: 'https://www.youtube.com/watch?v=i4CcQQil00k',
     embedType: 'youtube',
     duration: '06:50',
+    thumbnailUrl: 'https://img.youtube.com/vi/i4CcQQil00k/hqdefault.jpg',
     guidingQuestions: [
       'Tại sao phải ấn piston chậm rãi khi nén khí?',
       'Tích số p · V có thay đổi đáng kể khi nén xilanh không?'
